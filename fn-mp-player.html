@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="bright">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Find Number — ผู้เล่น</title>
+<style>
+:root{--font:"Segoe UI","Leelawadee UI","Noto Sans Thai","Tahoma",system-ui,sans-serif}
+html[data-theme="bright"]{--bg:#FFF6E9;--surface:#FFFFFF;--surface2:#FFEFD6;--line:rgba(40,30,60,.12);--text:#231B33;--muted:#6E6680;--accent:#FF4D6D;--accent2:#3A86FF;--accent3:#F5B700;--ok:#1FAA6B;--bad:#E5383B;--ink:#FFFFFF;--shadow:0 4px 0 rgba(35,27,51,.12)}
+html[data-theme="dark"]{--bg:#121419;--surface:#1C1F27;--surface2:#262A35;--line:rgba(255,255,255,.10);--text:#F3F2F7;--muted:#9BA1B0;--accent:#FF5C8A;--accent2:#4CC9F0;--accent3:#FFD23F;--ok:#3DDC97;--bad:#FF5A5F;--ink:#121419;--shadow:0 4px 0 rgba(0,0,0,.35)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+button,input{font-family:inherit;color:inherit}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+.screen.on{display:flex}
+.mark{width:64px;height:64px;border-radius:18px;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:900;font-size:26px;box-shadow:var(--shadow);margin-bottom:14px}
+h1{margin:0 0 4px;font-size:28px;font-weight:900}
+.muted{color:var(--muted);font-weight:700}
+.card{background:var(--surface);border:2px solid var(--line);border-radius:24px;padding:22px;width:min(380px,100%);box-shadow:var(--shadow);margin-top:18px}
+input.name{width:100%;height:56px;border-radius:16px;border:2px solid var(--line);background:var(--bg);font-size:20px;font-weight:800;padding:0 16px;text-align:center}
+.btn{width:100%;height:58px;border:0;border-radius:16px;background:var(--accent);color:var(--ink);font-weight:900;font-size:20px;margin-top:12px;box-shadow:var(--shadow);cursor:pointer}
+.btn:active{transform:translateY(3px);box-shadow:none}
+.btn:disabled{opacity:.5}
+.big{font-size:22px;font-weight:900;margin:10px 0 4px}
+.dots{display:inline-flex;gap:6px;margin-top:14px}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:b 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{50%{transform:translateY(-8px);opacity:.5}}
+
+/* game */
+#game{padding:0;justify-content:flex-start}
+.hud{width:100%;display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border-bottom:2px solid var(--line)}
+.hud .me{font-weight:800;font-size:14px;color:var(--muted);max-width:30%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.target{margin:0 auto;display:flex;align-items:center;gap:10px}
+.target .lab{font-weight:800;color:var(--muted);font-size:13px}
+.num{min-width:76px;height:50px;padding:0 12px;border-radius:14px;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-size:28px;font-weight:900;transition:transform .12s}
+.num img{height:40px;width:40px;object-fit:contain;display:block}
+.num.pop{transform:scale(1.15)}
+.prog{font-weight:900;font-size:18px;min-width:70px;text-align:right;font-variant-numeric:tabular-nums}
+.bar{width:100%;height:5px;background:var(--surface2)}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .2s}
+.boardwrap{flex:1;width:100%;display:flex;align-items:center;justify-content:center;padding:8px;min-height:0;position:relative}
+.field{position:relative;aspect-ratio:var(--ar,.62);height:100%;max-width:100%;max-height:100%}
+.field.lock{animation:shk .4s}
+.field.lock .tile{opacity:.45}
+@keyframes shk{25%{translate:-6px}50%{translate:6px}75%{translate:-3px}}
+.tile{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot,0deg));border:0;background:none;font-size:calc(var(--cell) * .46 * var(--s,1));font-weight:900;line-height:1;padding:.18em .26em;border-radius:.3em;font-variant-numeric:tabular-nums;touch-action:manipulation;cursor:pointer}
+.tile.ul span{text-decoration:underline;text-decoration-thickness:.08em;text-underline-offset:.12em}
+.tile img{display:block;width:calc(var(--cell) * .74 * var(--s,1));height:calc(var(--cell) * .74 * var(--s,1));object-fit:contain;pointer-events:none}
+.tile.imgt{padding:.06em}
+.tile.found{pointer-events:none;animation:out .32s ease-out forwards}
+@keyframes out{to{transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(1.2);opacity:0}}
+.tile.wrong{animation:wr .4s}
+@keyframes wr{0%,100%{translate:0}25%{translate:-6px}50%{translate:6px}}
+.star{position:absolute;width:calc(var(--cell) * .55);height:calc(var(--cell) * .55);background:var(--accent3);clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);pointer-events:none;z-index:4;transform:translate(-50%,-50%) scale(0);animation:ping .5s ease-out forwards}
+.star.s2{width:calc(var(--cell) * .26);height:calc(var(--cell) * .26);animation-delay:.07s;background:var(--accent2)}
+@keyframes ping{40%{transform:translate(-50%,-50%) scale(1.15) rotate(30deg);opacity:1}100%{transform:translate(-50%,-50%) scale(.2) rotate(70deg);opacity:0}}
+.callout{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;display:none;pointer-events:none;min-width:1.5em;padding:.08em .3em;border-radius:.18em;background:var(--accent);color:var(--ink);font-size:min(34vw,30vh);font-weight:900;line-height:1.1;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 .06em 0 rgba(0,0,0,.18)}
+.callout.im{background:var(--surface);border:3px solid var(--line)}
+.num.im{background:var(--surface);border:2px solid var(--accent)}
+.callout img{width:1.4em;height:1.4em;object-fit:contain;display:block;margin:.05em}
+.callout.on{display:block;animation:cin .3s cubic-bezier(.2,1.4,.4,1)}
+@keyframes cin{from{transform:translate(-50%,-50%) scale(.3);opacity:0}}
+.dim .tile{opacity:.18}
+.cover{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:8;background:rgba(10,10,16,.55);padding:20px}
+.cover.on{display:flex}
+.cover .card{text-align:center;animation:cin2 .3s cubic-bezier(.2,1.4,.4,1)}
+@keyframes cin2{from{transform:scale(.6);opacity:0}}
+.cnum{font-size:min(40vw,200px);font-weight:900;color:var(--accent);line-height:1}
+.rank{display:inline-grid;place-items:center;width:88px;height:88px;border-radius:50%;background:var(--accent3);color:#231B33;font-size:44px;font-weight:900;margin:6px auto}
+.res{font-size:44px;font-weight:900;font-variant-numeric:tabular-nums}
+.err{color:var(--bad);font-weight:800;margin-top:10px;min-height:1.2em}
+</style>
+</head>
+<body>
+
+<section class="screen on" id="sLoad"><div class="mark">FN</div><div class="muted">กำลังเชื่อมต่อ…</div></section>
+
+<section class="screen" id="sJoin">
+  <div class="mark">FN</div><h1>Find Number</h1><div class="muted">แข่งหาตัวเลข · ห้อง <b id="jRoom"></b></div>
+  <div class="card">
+    <input class="name" id="inName" maxlength="14" placeholder="ชื่อของคุณ" autocomplete="off">
+    <button class="btn" id="bJoin">เข้าร่วม</button>
+    <div class="err" id="jErr"></div>
+  </div>
+</section>
+
+<section class="screen" id="sWait">
+  <div class="mark">FN</div><h1 id="wName"></h1>
+  <div class="big" id="wMsg">รอผู้จัดเริ่มเกม</div>
+  <div class="muted" id="wSub"></div>
+  <div class="dots"><i></i><i></i><i></i></div>
+</section>
+
+<section class="screen" id="game">
+  <div class="hud">
+    <div class="me" id="gMe"></div>
+    <div class="target"><span class="lab" id="gLab">หา</span><div class="num" id="gNum">—</div></div>
+    <div class="prog" id="gProg">0/0</div>
+  </div>
+  <div class="bar"><i id="gBar"></i></div>
+  <div class="boardwrap" id="wrap"><div class="field" id="field"></div></div>
+</section>
+
+<div class="callout" id="callout"></div>
+<div class="cover" id="cover"><div class="card" id="coverCard"></div></div>
+
+<script src="fn-net.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const C=window.FNCore;
+const qs=new URLSearchParams(location.search);
+const ROOM=(qs.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const AR=0.62;              // fixed board aspect → every phone gets the identical pattern
+const WRONG_LOCK=900;       // ms the board locks after a wrong tap (stops spam-tapping)
+const CALL_MS=2000;         // command mode: number shown in the middle
+let net,cfg=null,state=null,me=null,pid=null,G=null;
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id))}
+const store={get(k,d){try{const v=localStorage.getItem('fnmp.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('fnmp.'+k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- sound ---------- */
+const Snd={ctx:null,init(){if(!this.ctx){try{this.ctx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume()},
+  tone(f,d,type,vol,when=0){if(!this.ctx)return;const c=this.ctx,o=c.createOscillator(),g=c.createGain(),t0=c.currentTime+when;o.type=type;o.frequency.setValueAtTime(f,t0);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+d);o.connect(g).connect(c.destination);o.start(t0);o.stop(t0+d+.02)},
+  ok(i){const f=880*Math.pow(2,Math.min(i%25,24)/24);this.tone(f,.09,'triangle',.18);this.tone(f*1.5,.14,'sine',.1,.04);this.tone(f*2,.22,'sine',.07,.08)},
+  bad(){this.tone(140,.18,'square',.08);this.tone(110,.2,'square',.06,.05)},
+  tick(){this.tone(880,.06,'sine',.12)},call(){[660,990].forEach((f,i)=>this.tone(f,.16,'triangle',.18,i*.09))},
+  win(){[523,659,784,1047].forEach((f,i)=>this.tone(f,.22,'triangle',.18,i*.1))}};
+document.addEventListener('pointerdown',()=>Snd.init());
+
+/* ---------- format ---------- */
+function label(v){
+  if(cfg.kind==='img'){const n=cfg.images[v-1];return `<img src="${C.imgUrl(n)}" alt="">`}
+  return `<span>${String(v).padStart(Math.max(2,String(cfg.count).length),'0')}</span>`;
+}
+const PAL={bright:['#FF4D6D','#FF7A1A','#E0A100','#1FAA6B','#00A3C7','#3A86FF','#7B4DFF','#D63CA0'],dark:['#FF5C8A','#FF9F43','#FFD23F','#3DDC97','#4CC9F0','#6C9BFF','#B388FF','#FF77C8'],
+  hardBright:['#3A86FF','#3F7FF0','#4A8CFF','#3576E8','#5B8FF5'],hardDark:['#4CC9F0','#55C2EE','#45BFE8','#5ACFF5','#4DB8E0']};
+
+/* ---------- boot ---------- */
+(async function(){
+  if(!ROOM){$('#sLoad').innerHTML='<div class="mark">FN</div><div class="big">ไม่พบรหัสห้อง</div><div class="muted">สแกน QR จากหน้าจออีกครั้ง</div>';return}
+  try{net=await FNNet.connect()}catch(e){$('#sLoad').innerHTML='<div class="mark">FN</div><div class="big">เชื่อมต่อไม่ได้</div><div class="muted">ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่</div>';return}
+  $('#jRoom').textContent=ROOM;
+  const SLOT=qs.get('slot')||''; // test helper: several players in one browser
+  pid=store.get('pid.'+ROOM+SLOT,null);
+  $('#inName').value=store.get('name','');
+  net.on(`rooms/${ROOM}/cfg`,v=>{cfg=v;if(cfg)document.documentElement.dataset.theme=cfg.theme||'bright';route()});
+  net.on(`rooms/${ROOM}/state`,v=>{state=v;route()});
+  if(pid)net.on(`rooms/${ROOM}/players/${pid}`,onMe);
+  else{show('sJoin')}
+})();
+
+$('#bJoin').onclick=async()=>{
+  const name=$('#inName').value.trim().slice(0,14);
+  if(!name){$('#jErr').textContent='ใส่ชื่อก่อนนะ';return}
+  if(!state){$('#jErr').textContent='ห้องนี้ยังไม่เปิด ลองสแกน QR ใหม่';return}
+  $('#bJoin').disabled=true;
+  pid=pid||('p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  store.set('pid.'+ROOM+(qs.get('slot')||''),pid);store.set('name',name);
+  await net.set(`rooms/${ROOM}/players/${pid}`,{name,joinedAt:net.now(),prog:0,done:false,gameId:null});
+  net.on(`rooms/${ROOM}/players/${pid}`,onMe);
+};
+
+function onMe(v){
+  if(!v){ // removed by host (or never joined)
+    me=null;if(G)stopGame();show('sJoin');$('#bJoin').disabled=false;return}
+  const prevRank=me&&me.rank;me=v;
+  $('#wName').textContent=v.name;$('#gMe').textContent=v.name;
+  if(G&&v.rank&&!prevRank)showRank();
+  route();
+}
+
+/* ---------- state routing ---------- */
+function route(){
+  if(!me||!state||!cfg)return;
+  const playing=state.status==='countdown'||state.status==='playing';
+  const inGame=me.gameId&&me.gameId===state.gameId;
+  if(playing&&inGame){
+    if(!G||G.gameId!==state.gameId)startGame();
+    return;
+  }
+  if(state.status==='ended'&&G&&G.gameId===state.gameId){endGame();return}
+  if(G&&G.gameId!==state.gameId)stopGame();
+  $('#cover').classList.remove('on');
+  show('sWait');
+  if(playing&&!inGame){$('#wMsg').textContent='เกมกำลังเล่นอยู่';$('#wSub').textContent='รอรอบถัดไปนะ'}
+  else if(state.status==='ended'&&!G){$('#wMsg').textContent='จบเกมแล้ว';$('#wSub').textContent='รอผู้จัดเริ่มรอบใหม่'}
+  else{$('#wMsg').textContent='รอผู้จัดเริ่มเกม';$('#wSub').textContent='เข้าร่วมแล้ว · ห้อง '+ROOM}
+}
+
+/* ---------- game ---------- */
+function startGame(){
+  stopGame();
+  G={gameId:state.gameId,startAt:state.startAt,seq:C.sequence(cfg),idx:me.prog||0,mis:0,lock:0,running:false,announcing:false,done:!!me.done};
+  show('game');
+  build();
+  updateHUD();
+  const field=$('#field');field.style.visibility='hidden';
+  // countdown synced to host start time
+  const tickDown=()=>{
+    if(!G)return;
+    const left=G.startAt-net.now();
+    if(left>0){
+      const n=Math.ceil(left/1000);
+      if(n!==G.lastN){G.lastN=n;cover(`<div class="muted">เตรียมตัว</div><div class="cnum">${n}</div>`);Snd.tick()}
+      G.cd=setTimeout(tickDown,50);return;
+    }
+    $('#cover').classList.remove('on');field.style.visibility='';
+    G.running=true;
+    if(G.done){waitingCover();return}
+    if(cfg.mode==='command')announce();
+  };
+  tickDown();
+}
+function stopGame(){if(!G)return;clearTimeout(G.cd);clearTimeout(G.annT);$('#callout').classList.remove('on');G=null}
+
+function build(){
+  const field=$('#field');field.innerHTML='';field.style.setProperty('--ar',AR);
+  const r=C.rng(cfg.seed),n=cfg.count,hard=cfg.diff==='hard',easy=cfg.diff==='easy';
+  const theme=cfg.theme||'bright';
+  const pal=hard?(theme==='dark'?PAL.hardDark:PAL.hardBright):PAL[theme];
+  const order=C.shuffle(Array.from({length:n},(_,i)=>i+1),r);
+  let cols=Math.max(1,Math.round(Math.sqrt(n*AR))),rows=Math.max(1,Math.ceil(n/cols));
+  const need=Math.ceil(n*1.18);
+  while(cols*rows<need){if(cols/rows<AR)cols++;else rows++}
+  G.cols=cols;G.rows=rows;
+  const cells=C.shuffle(Array.from({length:cols*rows},(_,i)=>i),r).slice(0,n);
+  const jit=easy?.25:.4;
+  const found=new Set(G.seq.slice(0,G.idx));
+  for(let v=1;v<=n;v++){
+    const c=cells[v-1],cx=c%cols,cy=Math.floor(c/cols);
+    const x=(cx+.5+(r()-.5)*jit)/cols,y=(cy+.5+(r()-.5)*jit)/rows;
+    const s=easy?1:hard?(.7+r()*.55):(.82+r()*.3);
+    const rot=easy?0:hard?Math.round((r()-.5)*300):Math.round((r()-.5)*40);
+    const col=pal[(order[v-1]+Math.floor(r()*3))%pal.length];
+    if(found.has(v))continue;
+    const el=document.createElement('button');
+    el.className='tile'+(cfg.kind==='img'?' imgt':'')+(hard&&cfg.kind!=='img'?' ul':'');
+    el.dataset.v=v;el.innerHTML=label(v);
+    el.style.left=(x*100)+'%';el.style.top=(y*100)+'%';
+    el.style.setProperty('--s',(n>=100?s*.85:s).toFixed(2));
+    el.style.setProperty('--rot',(cfg.kind==='img'?Math.round(rot/4):rot)+'deg');
+    el.style.color=col;
+    field.appendChild(el);
+  }
+  size();
+}
+function size(){
+  if(!G)return;const f=$('#field');
+  const w=f.clientWidth,h=f.clientHeight;
+  f.style.setProperty('--cell',Math.min(w/G.cols,h/G.rows)+'px');
+}
+window.addEventListener('resize',size);
+
+function updateHUD(){
+  if(!G)return;
+  const t=G.seq[G.idx];
+  $('#gNum').classList.toggle('im',cfg.kind==='img');
+  $('#gNum').innerHTML=(t==null||(cfg.mode==='command'&&(G.announcing||!G.running)))?'—':label(t);
+  $('#gLab').textContent=cfg.kind==='img'?'หาภาพ':'หาเลข';
+  $('#gProg').textContent=G.idx+'/'+G.seq.length;
+  $('#gBar').style.width=(G.idx/G.seq.length*100)+'%';
+}
+
+function announce(){
+  if(!G||G.done)return;
+  const t=G.seq[G.idx];if(t==null)return;
+  const c=$('#callout'),hud=$('#gNum');
+  G.announcing=true;$('#field').classList.add('dim');updateHUD();
+  c.innerHTML=label(t);c.classList.toggle('im',cfg.kind==='img');c.classList.remove('on');void c.offsetWidth;c.classList.add('on');Snd.call();
+  G.annT=setTimeout(()=>{
+    if(!G)return;
+    const a=c.getBoundingClientRect(),b=hud.getBoundingClientRect();
+    const dx=(b.left+b.width/2)-(a.left+a.width/2),dy=(b.top+b.height/2)-(a.top+a.height/2),sc=b.height/a.height;
+    const an=c.animate([{transform:'translate(-50%,-50%) scale(1)'},{transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(${sc})`}],{duration:320,easing:'cubic-bezier(.5,0,.2,1)',fill:'forwards'});
+    an.onfinish=()=>{c.classList.remove('on');an.cancel();if(!G)return;G.announcing=false;$('#field').classList.remove('dim');updateHUD();hud.classList.add('pop');setTimeout(()=>hud.classList.remove('pop'),120)};
+  },CALL_MS);
+}
+
+$('#field').addEventListener('pointerdown',e=>{
+  const el=e.target.closest('.tile');
+  if(!el||!G||!G.running||G.done||G.announcing)return;
+  if(state.status==='ended')return;
+  e.preventDefault();
+  if(performance.now()<G.lock)return;
+  const v=+el.dataset.v,t=G.seq[G.idx];
+  if(v===t){
+    el.classList.add('found');sparkle(el);G.idx++;Snd.ok(G.idx);
+    const hud=$('#gNum');hud.classList.add('pop');setTimeout(()=>hud.classList.remove('pop'),120);
+    updateHUD();
+    if(G.idx>=G.seq.length){finish();return}
+    net.update(`rooms/${ROOM}/players/${pid}`,{prog:G.idx,mis:G.mis});
+    if(cfg.mode==='command')setTimeout(()=>{if(G&&!G.done)announce()},250);
+  }else{
+    G.mis++;Snd.bad();G.lock=performance.now()+WRONG_LOCK;
+    el.classList.remove('wrong');void el.offsetWidth;el.classList.add('wrong');
+    const f=$('#field');f.classList.remove('lock');void f.offsetWidth;f.classList.add('lock');setTimeout(()=>f.classList.remove('lock'),WRONG_LOCK);
+  }
+});
+function sparkle(el){
+  const r=$('#field').getBoundingClientRect(),b=el.getBoundingClientRect();
+  const cx=b.left+b.width/2-r.left,cy=b.top+b.height/2-r.top;
+  const a=document.createElement('div');a.className='star';a.style.left=(cx+b.width*.32)+'px';a.style.top=(cy-b.height*.3)+'px';
+  const s=document.createElement('div');s.className='star s2';s.style.left=(cx-b.width*.38)+'px';s.style.top=(cy+b.height*.25)+'px';
+  $('#field').append(a,s);setTimeout(()=>{a.remove();s.remove()},650);
+}
+function finish(){
+  G.done=true;
+  const ms=Math.max(0,net.now()-G.startAt);
+  net.update(`rooms/${ROOM}/players/${pid}`,{prog:G.idx,mis:G.mis,done:true,ms});
+  Snd.win();
+  waitingCover(ms);
+}
+function fmt(ms){return (ms/1000).toFixed(2)}
+function cover(html){$('#coverCard').innerHTML=html;$('#cover').classList.add('on')}
+function waitingCover(ms){
+  if(me&&me.rank){showRank();return}
+  cover(`<div class="big">ครบแล้ว!</div><div class="res">${fmt(ms!=null?ms:(me&&me.ms)||0)} <small style="font-size:18px">วิ</small></div><div class="muted">รอผลจากหน้าจอ</div><div class="dots"><i></i><i></i><i></i></div>`);
+}
+function showRank(){
+  if(!me||!me.rank)return;
+  const res=me.done?`${fmt(me.ms||0)} <small style="font-size:18px">วิ</small>`:`${me.prog||0}/${G?G.seq.length:''}`;
+  cover(`<div class="muted">คุณได้อันดับ</div><div class="rank">${me.rank}</div><div class="res">${res}</div><div class="muted">ดูผลบนหน้าจอใหญ่</div>`);Snd.win();
+}
+function endGame(){
+  if(!G)return;
+  G.running=false;clearTimeout(G.annT);$('#callout').classList.remove('on');$('#field').classList.remove('dim');
+  if(me&&me.rank){showRank();return}
+  if(G.done){waitingCover();return}
+  cover(`<div class="big">จบเกม</div><div class="muted">คุณหาได้</div><div class="res">${G.idx}/${G.seq.length}</div><div class="muted">ดูผลบนหน้าจอใหญ่</div>`);
+}
+</script>
+</body>
+</html>

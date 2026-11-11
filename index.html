@@ -1,1567 +1,372 @@
-<!doctype html>
-<html lang="th">
+<!DOCTYPE html>
+<html lang="en" data-theme="bright">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>EGAT Touchscreen</title>
+<title>Find Number</title>
 <style>
-  :root{
-    --egat-yellow:#ffc20e;
-    --egat-blue:#0b4ea2;
-    --glow:120,180,255;           /* สีแสงเรืองของปุ่ม (R,G,B) */
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{width:100%;height:100%;background:#000;overflow:hidden}
-  body{
-    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
-    touch-action:none;-webkit-tap-highlight-color:transparent;
-    font-family:"Gotham","Montserrat","Segoe UI",system-ui,sans-serif;
-  }
-  img{display:block;-webkit-user-drag:none;user-drag:none;pointer-events:none}
+:root{--font:"Segoe UI","Helvetica Neue",Arial,"Leelawadee UI",system-ui,sans-serif}
+html[data-theme="bright"]{--bg:#FFF6E9;--surface:#FFFFFF;--surface2:#FFEFD6;--line:rgba(40,30,60,.12);--text:#231B33;--muted:#6E6680;--accent:#FF4D6D;--accent2:#3A86FF;--accent3:#F5B700;--ok:#1FAA6B;--bad:#E5383B;--ink:#FFFFFF;--shadow:0 4px 0 rgba(35,27,51,.12)}
+html[data-theme="dark"]{--bg:#121419;--surface:#1C1F27;--surface2:#262A35;--line:rgba(255,255,255,.10);--text:#F3F2F7;--muted:#9BA1B0;--accent:#FF5C8A;--accent2:#4CC9F0;--accent3:#FFD23F;--ok:#3DDC97;--bad:#FF5A5F;--ink:#121419;--shadow:0 4px 0 rgba(0,0,0,.35)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+button,input{font-family:inherit;color:inherit}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+.screen.on{display:flex}
+.mark{width:64px;height:64px;border-radius:18px;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:900;font-size:26px;box-shadow:var(--shadow);margin-bottom:14px}
+h1{margin:0 0 4px;font-size:28px;font-weight:900}
+.muted{color:var(--muted);font-weight:700}
+.card{background:var(--surface);border:2px solid var(--line);border-radius:24px;padding:22px;width:min(380px,100%);box-shadow:var(--shadow);margin-top:18px}
+input.name{width:100%;height:56px;border-radius:16px;border:2px solid var(--line);background:var(--bg);font-size:20px;font-weight:800;padding:0 16px;text-align:center}
+.btn{width:100%;height:58px;border:0;border-radius:16px;background:var(--accent);color:var(--ink);font-weight:900;font-size:20px;margin-top:12px;box-shadow:var(--shadow);cursor:pointer}
+.btn:active{transform:translateY(3px);box-shadow:none}
+.btn:disabled{opacity:.5}
+.big{font-size:22px;font-weight:900;margin:10px 0 4px}
+.dots{display:inline-flex;gap:6px;margin-top:14px}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--accent);animation:b 1s infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{50%{transform:translateY(-8px);opacity:.5}}
 
-  /* ---------- 1920x1080 stage scaled to fit ---------- */
-  #stage{
-    position:absolute;left:50%;top:50%;width:1920px;height:1080px;
-    transform-origin:0 0;overflow:hidden;background:#000;
-  }
-  .abs{position:absolute}
-  .screen{position:absolute;inset:0;visibility:hidden}
-  .screen.active{visibility:visible}
-
-  /* ---------- HOME : background ---------- */
-  #home .bg{left:0;top:0;width:1920px;height:1080px;opacity:0}
-  #home .earth-glow{left:0;top:0;width:1920px;height:1080px;mix-blend-mode:screen;opacity:0}
-  #home.play .bg{animation:fadeIn 1s ease-out forwards}
-  #home.play .earth-glow{animation:fadeIn 1.2s ease-out .4s forwards, earthPulse 6s ease-in-out 1.6s infinite}
-  @keyframes earthPulse{
-    0%,100%{opacity:.2}
-    50%{opacity:.8}
-  }
-
-  /* ---------- satellite: drift left → right, loop ---------- */
-  .sat-track{left:0;top:269px;width:307px;height:232px;will-change:transform;
-    animation:satMove var(--sat-dur,90s) linear var(--sat-delay,0s) infinite}
-  .sat-bob{width:100%;height:100%;animation:satBob 9s ease-in-out infinite}
-  @keyframes satMove{
-    from{transform:translateX(-340px)}
-    to  {transform:translateX(1960px)}
-  }
-  @keyframes satBob{
-    0%,100%{transform:translateY(0) rotate(0deg)}
-    50%    {transform:translateY(14px) rotate(-2.5deg)}
-  }
-
-  /* ---------- text lines: animate in one by one ---------- */
-  .line-in{opacity:0;transform:translateY(24px)}
-  #home.play .line-in{animation:lineIn .8s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:var(--d)}
-  @keyframes lineIn{to{opacity:1;transform:none}}
-  .rule{opacity:0;transform:scaleX(0);transform-origin:50% 50%}
-  #home.play .rule{animation:ruleIn .9s cubic-bezier(.6,0,.2,1) forwards;animation-delay:var(--d)}
-  @keyframes ruleIn{0%{opacity:1;transform:scaleX(0)}100%{opacity:1;transform:scaleX(1)}}
-  @keyframes fadeIn{to{opacity:1}}
-
-  /* ---------- menu buttons ---------- */
-  /* ---------- text glow: soft flicker behind each line ---------- */
-  .tglow{opacity:0;filter:blur(7px) brightness(1.8);mix-blend-mode:screen}
-  #home.glowing .tglow{animation:flicker var(--fd) linear infinite;animation-delay:var(--fdl)}
-  @keyframes flicker{
-    0%{opacity:.45} 6%{opacity:.75} 8%{opacity:.4} 14%{opacity:.65} 27%{opacity:.55}
-    29%{opacity:.9} 31%{opacity:.5} 45%{opacity:.7} 58%{opacity:.45} 60%{opacity:.8}
-    62%{opacity:.55} 76%{opacity:.7} 88%{opacity:.5} 90%{opacity:.85} 92%{opacity:.6} 100%{opacity:.45}
-  }
-  /* ---------- logo light sweep (drawn on canvas) ---------- */
-  #logoSweep{left:833px;top:65px;width:246px;height:70px;pointer-events:none;
-    filter:drop-shadow(0 0 6px rgba(255,255,255,.9)) drop-shadow(0 0 16px rgba(255,214,120,.6))}
-  /* ---------- satellite thruster ---------- */
-  #thruster{position:absolute;left:-178px;top:127px;width:320px;height:320px;pointer-events:none;mix-blend-mode:screen}
-
-  .btn{width:268px;height:268px;border-radius:50%;cursor:pointer;opacity:0;transform:scale(.85)}
-  #home.play .btn{animation:btnIn .7s cubic-bezier(.2,.8,.25,1.15) forwards;animation-delay:var(--d)}
-  @keyframes btnIn{to{opacity:1;transform:scale(1)}}
-  .btn .face{position:absolute;inset:0;transition:transform .15s ease-out}
-  .btn .circle{position:absolute;left:0;top:0;width:268px;height:268px;opacity:.75}
-  .btn .lbl{position:absolute}
-  .btn .halo{
-    position:absolute;inset:0;border-radius:50%;opacity:0;pointer-events:none;
-    border:2px solid rgba(var(--glow),.75);
-    box-shadow:0 0 40px 8px rgba(var(--glow),.6), inset 0 0 44px 6px rgba(var(--glow),.4);
-  }
-  /* sequential soft glow, left → right */
-  #home.glowing .btn .halo{animation:halo var(--cycle) ease-in-out infinite;animation-delay:var(--gd)}
-  @keyframes halo{
-    0%   {opacity:0}
-    7%   {opacity:1}
-    20%  {opacity:0}
-    100% {opacity:0}
-  }
-  .btn.pressed .face{transform:scale(.93)}
-  .btn.pressed .halo{animation:none!important;opacity:1}
-
-  /* =========================================================
-     CONTENT PAGES (shared layout)
-     ========================================================= */
-  .cpage .frame{left:0;top:0;width:1920px;height:1080px;opacity:0}
-  .cpage .homeBtn{left:1780px;top:58px;width:86px;height:86px;border-radius:50%;cursor:pointer;opacity:0}
-  .cpage .homeBtn img{width:86px;height:auto;transition:transform .15s}
-  .cpage .homeBtn.pressed img{transform:scale(.9)}
-  .cpage .cat{opacity:0;transform:translateX(-40px)}
-  .cpage .card{left:21px;top:-1px;width:1877px;height:1056px;overflow:hidden;opacity:0;transform:translateY(40px)}
-  .cpage .kb{position:absolute;inset:0;will-change:transform}
-  .cpage .kb > *{position:absolute}
-
-  /* step 1: frame + home button   step 2: category label   step 3: card + text lines */
-  .cpage.play .frame,
-  .cpage.play .homeBtn{animation:fadeIn .7s ease-out forwards}
-  .cpage.play .cat{animation:catIn .8s cubic-bezier(.2,.7,.2,1) .55s forwards}
-  .cpage.play .card{animation:cardIn 1.1s cubic-bezier(.2,.7,.2,1) 1.05s forwards}
-  .cpage.play .line-in{animation:lineIn .8s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:var(--d)}
-  .cpage.play .rule{animation:ruleIn .9s cubic-bezier(.6,0,.2,1) forwards;animation-delay:var(--d)}
-  @keyframes catIn{to{opacity:1;transform:none}}
-  @keyframes cardIn{to{opacity:1;transform:none}}
-
-  /* ---------- city ambience ---------- */
-  /* 1) water ripple (canvas, row displacement inside a water mask) */
-  .ripple{pointer-events:none}
-  /* 2) sun: breathing glow + slowly turning rays */
-  .sun-rays{width:900px;height:900px;mix-blend-mode:screen;opacity:0}
-  .sun-glow{width:520px;height:520px;mix-blend-mode:screen;opacity:0}
-  .cpage.live .sun-rays{animation:raysSpin 140s linear infinite, raysPulse 7s ease-in-out infinite}
-  .cpage.live .sun-glow{animation:sunPulse 5s ease-in-out infinite}
-  @keyframes raysSpin{to{rotate:360deg}}
-  @keyframes raysPulse{0%,100%{opacity:.35}50%{opacity:.75}}
-  @keyframes sunPulse{0%,100%{opacity:.45;transform:scale(.92)}50%{opacity:.9;transform:scale(1.08)}}
-  /* 3) sunlight glare sweeping over water, panels and glass (drawn on canvas) */
-  .glare{left:0;top:0;width:1877px;height:1056px;mix-blend-mode:screen;pointer-events:none}
-  /* yellow tagline bar: wipes in from the left, then its text */
-  .tag-bar{clip-path:inset(0 100% 0 0 round 42px)}
-  .tag-text{opacity:0;transform:translateX(-24px)}
-  .cpage.play .tag-bar{animation:barWipe .9s cubic-bezier(.6,0,.2,1) forwards;animation-delay:var(--d)}
-  .cpage.play .tag-text{animation:catIn .7s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:var(--d)}
-  @keyframes barWipe{to{clip-path:inset(0 0 0 0 round 42px)}}
-  .falls,.turbines,.chargers,.fx,.mist{pointer-events:none}
-  .fx{mix-blend-mode:screen}
-  .obj-sweep{pointer-events:none;filter:drop-shadow(0 0 4px rgba(255,255,255,.95)) drop-shadow(0 0 12px rgba(255,220,120,.7))}
-  /* category label light sweep */
-  .cat-sweep{pointer-events:none;
-    filter:drop-shadow(0 0 5px rgba(255,255,255,.9)) drop-shadow(0 0 14px rgba(255,214,120,.6))}
-
-  /* ---------- staff panels (EventLab olive gold) ---------- */
-  .admin{
-    --a-bg:#1e1d19; --a-surface:#2a2924; --a-line:#3b3a33; --a-olive:#7b8040; --a-olive-hi:#979c52;
-    --a-gold:#c9a646; --a-text:#ece8dc; --a-muted:#a7a391;
-    position:absolute;inset:0;background:rgba(10,10,8,.72);display:flex;align-items:center;justify-content:center;
-    font-family:"Sarabun","Segoe UI","Leelawadee UI",Tahoma,sans-serif;color:var(--a-text);
-  }
-  .admin[hidden]{display:none}
-  .admin-panel{width:980px;background:var(--a-bg);border:1px solid var(--a-line);border-radius:20px;padding:30px 52px 30px;display:flex;flex-direction:column;gap:6px}
-  .admin-panel.small{width:760px}
-  .admin-head{display:flex;gap:22px;align-items:center;margin-bottom:0}
-  .admin .mono{width:64px;height:64px;border-radius:14px;border:2px solid var(--a-gold);color:var(--a-gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;letter-spacing:1px}
-  .admin h2{font-size:40px;font-weight:700;line-height:1.1}
-  .admin h3{font-size:22px;color:var(--a-gold);font-weight:600;letter-spacing:.5px;margin-top:10px;padding-bottom:6px;border-bottom:1px solid var(--a-line)}
-  .admin p{font-size:20px;color:var(--a-muted)}
-  .admin .row{display:grid;grid-template-columns:330px 64px 1fr 64px 80px;gap:16px;align-items:center;min-height:62px}
-  .admin .row label{font-size:24px}
-  .admin .row .num{grid-column:3;font-size:24px;text-align:center}
-  .admin .row .num b{font-size:34px;color:var(--a-gold);font-variant-numeric:tabular-nums;margin-right:6px}
-  .admin output{font-size:28px;font-weight:700;color:var(--a-gold);text-align:right;font-variant-numeric:tabular-nums}
-  .admin button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--a-line);background:var(--a-surface);color:var(--a-text)}
-  .admin .step{width:58px;height:58px;font-size:32px;line-height:1}
-  .admin .step:active,.admin .ghost:active{background:var(--a-line)}
-  .admin input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:64px;background:transparent;touch-action:none}
-  .admin input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:5px;background:var(--a-line)}
-  .admin input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:44px;height:44px;border-radius:50%;background:var(--a-gold);margin-top:-17px;border:4px solid var(--a-bg)}
-  .admin .status{font-size:20px;padding:12px 18px;border-radius:10px;background:var(--a-surface);border-left:4px solid var(--a-muted)}
-  .admin .status[data-ok="1"]{border-left-color:var(--a-olive-hi);color:var(--a-text)}
-  .admin .status[data-ok="0"]{border-left-color:var(--a-gold)}
-  .admin-foot{display:flex;justify-content:flex-end;gap:16px;margin-top:14px}
-  .admin .switch{grid-column:2 / 4;justify-self:start;display:flex;align-items:center;gap:16px;height:58px;padding:0 22px 0 10px;font-size:24px}
-  .admin .switch i{position:relative;width:76px;height:42px;border-radius:21px;background:var(--a-line);transition:background .2s}
-  .admin .switch i::after{content:"";position:absolute;left:4px;top:4px;width:34px;height:34px;border-radius:50%;background:var(--a-muted);transition:transform .2s, background .2s}
-  .admin .switch[aria-checked="true"] i{background:var(--a-olive)}
-  .admin .switch[aria-checked="true"] i::after{transform:translateX(34px);background:var(--a-gold)}
-  /* hide the mouse pointer everywhere, except on the staff panels so a mouse can still be used there */
-  html.hide-cursor, html.hide-cursor *{cursor:none !important}
-  html.hide-cursor .admin, html.hide-cursor .admin *{cursor:default !important}
-  .admin .ghost,.admin .primary{height:72px;padding:0 36px;font-size:24px;font-weight:600}
-  .admin .primary{background:var(--a-olive);border-color:var(--a-olive);color:#fff}
-  .admin .primary:active{background:var(--a-olive-hi)}
-
-  /* ---------- language ---------- */
-  [data-ui-lang="en"] [data-lang="th"], [data-ui-lang="th"] [data-lang="en"]{display:none !important}
-  .lang-btn{width:227px;height:97px;cursor:pointer;isolation:auto}
-  .lang-btn img{position:absolute;left:0;top:0;width:227px;height:97px;transition:transform .15s, filter .3s, opacity .3s}
-  .lang-btn .lang-glow{mix-blend-mode:hard-light}
-  .lang-btn.pressed img{transform:scale(.94)}
-  .lang-btn.is-current{pointer-events:none}
-  .lang-btn.is-current .lang-pill{filter:grayscale(1) brightness(.5)}
-  .lang-btn.is-current .lang-glow{visibility:hidden}
-  /* switching language on Home: the newly shown text and buttons come in quickly */
-  #home.quick .line-in, #home.quick .rule, #home.quick .btn{animation-delay:calc(var(--d) * .3) !important}
-
-  /* ---------- page transition cover ---------- */
-  #fader{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s ease}
-  #fader.on{opacity:1;pointer-events:auto}
-
-  /* ---------- temporary placeholder for content pages ---------- */
-  #page .ph-label{left:30px;top:34px;color:var(--egat-yellow);font-weight:800;font-size:40px;line-height:1.12;text-transform:uppercase;letter-spacing:.5px}
-  #page .ph-card{left:28px;top:32px;width:1864px;height:1016px;background:#fff;border-radius:40px;
-    clip-path:polygon(330px 0,100% 0,100% 100%,0 100%,0 330px)}
-  #page .ph-note{left:390px;top:120px;color:var(--egat-blue);font-weight:800;font-size:64px;line-height:1.1}
-  #page .ph-sub{left:392px;top:220px;color:#5a6b85;font-size:30px}
-  .home-btn{left:1780px;top:58px;width:86px;height:86px;border-radius:50%;background:var(--egat-yellow);cursor:pointer;
-    display:flex;align-items:center;justify-content:center;transition:transform .15s}
-  .home-btn.pressed{transform:scale(.9)}
-  .home-btn svg{width:46px;height:46px}
+/* game */
+#game{padding:0;justify-content:flex-start}
+.hud{width:100%;display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border-bottom:2px solid var(--line)}
+.hud .me{display:flex;align-items:center;gap:6px;font-weight:800;font-size:14px;color:var(--muted);max-width:30%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.target{margin:0 auto;display:flex;align-items:center;gap:10px}
+.target .lab{font-weight:800;color:var(--muted);font-size:13px}
+.num{min-width:76px;height:50px;padding:0 12px;border-radius:14px;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-size:28px;font-weight:900;transition:transform .12s}
+.num img{height:40px;width:40px;object-fit:contain;display:block}
+.num.pop{transform:scale(1.15)}
+.prog{font-weight:900;font-size:18px;min-width:70px;text-align:right;font-variant-numeric:tabular-nums}
+.bar{width:100%;height:5px;background:var(--surface2)}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .2s}
+.boardwrap{flex:1;width:100%;display:flex;align-items:center;justify-content:center;padding:8px;min-height:0;position:relative}
+.field{position:relative;aspect-ratio:var(--ar,.62);height:100%;max-width:100%;max-height:100%}
+.brandbox{margin-bottom:14px;display:grid;place-items:center}
+.brandbox .mark{margin:0}
+.brandbox img{display:block;object-fit:contain;max-width:70vw}
+.brandbox img.s{height:56px}.brandbox img.m{height:84px}.brandbox img.l{height:120px}
+.hud .blogo{height:30px;max-width:80px;object-fit:contain;display:block}
+#game.shake{animation:shk2 .45s}
+@keyframes shk2{0%,100%{transform:none}15%{transform:translate(-14px,4px) rotate(-1deg)}30%{transform:translate(12px,-4px) rotate(1deg)}45%{transform:translate(-10px,3px)}60%{transform:translate(8px,-2px)}75%{transform:translate(-4px,1px)}}
+#game.shake .hud{background:var(--bad)}
+.field.lock{}
+.field.lock .tile{opacity:.45}
+@keyframes shk{25%{translate:-6px}50%{translate:6px}75%{translate:-3px}}
+.tile{position:absolute;transform:translate(-50%,-50%) rotate(var(--rot,0deg));border:0;background:none;font-size:calc(var(--cell) * .46 * var(--s,1));font-weight:900;line-height:1;padding:.18em .26em;border-radius:.3em;font-variant-numeric:tabular-nums;touch-action:manipulation;cursor:pointer}
+.tile.ul span{text-decoration:underline;text-decoration-thickness:.08em;text-underline-offset:.12em}
+.tile img{display:block;width:calc(var(--cell) * .74 * var(--s,1));height:calc(var(--cell) * .74 * var(--s,1));object-fit:contain;pointer-events:none}
+.tile.imgt{padding:.06em}
+.tile.found{pointer-events:none;animation:out .32s ease-out forwards}
+.gridwrap{position:absolute;inset:0;display:grid;gap:var(--ggap,5px)}
+.gridwrap .tile{position:relative;transform:none;display:grid;place-items:center;background:var(--surface);border:2px solid var(--line);border-radius:min(12px,calc(var(--cell) * .14));padding:0;font-size:calc(var(--cell) * .46);width:100%;height:100%;min-width:0;min-height:0}
+.gridwrap .tile.found{animation:gridOut .32s ease-out forwards}
+@keyframes gridOut{0%{transform:scale(1);opacity:1}60%{transform:scale(1.2);opacity:.5}100%{transform:scale(1);opacity:.15}}
+.gridwrap .empty{visibility:hidden}
+@keyframes out{to{transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(1.2);opacity:0}}
+.tile.wrong{animation:wr .4s}
+@keyframes wr{0%,100%{translate:0}25%{translate:-6px}50%{translate:6px}}
+.star{position:absolute;width:calc(var(--cell) * .55);height:calc(var(--cell) * .55);background:var(--accent3);clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);pointer-events:none;z-index:4;transform:translate(-50%,-50%) scale(0);animation:ping .5s ease-out forwards}
+.star.s2{width:calc(var(--cell) * .26);height:calc(var(--cell) * .26);animation-delay:.07s;background:var(--accent2)}
+@keyframes ping{40%{transform:translate(-50%,-50%) scale(1.15) rotate(30deg);opacity:1}100%{transform:translate(-50%,-50%) scale(.2) rotate(70deg);opacity:0}}
+.callout{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;display:none;pointer-events:none;min-width:1.5em;padding:.08em .3em;border-radius:.18em;background:var(--accent);color:var(--ink);font-size:min(34vw,30vh);font-weight:900;line-height:1.1;text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 .06em 0 rgba(0,0,0,.18)}
+.callout.im{background:var(--surface);border:3px solid var(--line)}
+.num.im{background:var(--surface);border:2px solid var(--accent)}
+.callout img{width:1.4em;height:1.4em;object-fit:contain;display:block;margin:.05em}
+.callout.on{display:block;animation:cin .3s cubic-bezier(.2,1.4,.4,1)}
+@keyframes cin{from{transform:translate(-50%,-50%) scale(.3);opacity:0}}
+.dim .tile{opacity:.18}
+.cover{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:8;background:rgba(10,10,16,.55);padding:20px}
+.cover.on{display:flex}
+.cover .card{text-align:center;animation:cin2 .3s cubic-bezier(.2,1.4,.4,1)}
+@keyframes cin2{from{transform:scale(.6);opacity:0}}
+.cnum{font-size:min(40vw,200px);font-weight:900;color:var(--accent);line-height:1}
+.rank{display:inline-grid;place-items:center;width:88px;height:88px;border-radius:50%;background:var(--accent3);color:#231B33;font-size:44px;font-weight:900;margin:6px auto}
+.res{font-size:44px;font-weight:900;font-variant-numeric:tabular-nums}
+.err{color:var(--bad);font-weight:800;margin-top:10px;min-height:1.2em}
 </style>
 </head>
 <body>
-<div id="stage">
 
-  <!-- =================== HOME =================== -->
-  <section id="home" class="screen">
-    <img class="abs bg" src="assets/bg.jpg" alt="">
-    <img class="abs earth-glow" src="assets/earth-glow.jpg" alt="">
+<section class="screen on" id="sLoad"><div class="mark">FN</div><div class="muted">Connecting…</div></section>
 
-    <div class="abs sat-track"><div class="sat-bob">
-      <img src="assets/satellite.png" width="307" height="232" alt="">
-      <canvas id="thruster" width="320" height="320"></canvas>
-    </div></div>
-
-    <!-- text glow layers (behind the text) -->
-    <img class="abs tglow" data-lang="en" style="left:343px;top:182px;width:1227px;--fd:4.3s;--fdl:0s"   src="assets/text1.png" alt="">
-    <img class="abs tglow" data-lang="en" style="left:517px;top:240px;width:878px;--fd:3.7s;--fdl:-1.2s" src="assets/text2.png" alt="">
-    <img class="abs tglow" data-lang="en" style="left:529px;top:341px;width:855px;--fd:5.1s;--fdl:-2.6s" src="assets/text3.png" alt="">
-
-    <!-- text lines, in reading order -->
-    <img class="abs line-in" id="logoImg" style="left:833px;top:65px;width:246px;--d:.35s"  src="assets/logo.png"  alt="EGAT">
-    <canvas class="abs" id="logoSweep" width="492" height="140"></canvas>
-    <img class="abs line-in" data-lang="en" style="left:343px;top:182px;width:1227px;--d:.75s" src="assets/text1.png" alt="Powering Thailand's Sustainable Future">
-    <img class="abs line-in" data-lang="en" style="left:517px;top:240px;width:878px;--d:1.05s" src="assets/text2.png" alt="Through Energy Innovation and Space Technology">
-    <img class="abs rule" data-lang="en" style="left:524px;top:301px;width:865px;--d:1.35s" src="assets/line.png"  alt="">
-    <img class="abs line-in" data-lang="en" style="left:529px;top:341px;width:855px;--d:1.6s"  src="assets/text3.png" alt="Reliable Energy Today, Sustainable Tomorrow">
-    <!-- Thai text lines -->
-    <img class="abs tglow" data-lang="th" style="left:341px;top:182px;width:1227px;--fd:4.3s;--fdl:0s" src="assets/th/title.png" alt="">
-    <img class="abs tglow" data-lang="th" style="left:583px;top:234px;width:730px;--fd:3.7s;--fdl:-1.2s" src="assets/th/sub1.png" alt="">
-    <img class="abs tglow" data-lang="th" style="left:583px;top:313px;width:730px;--fd:4.6s;--fdl:-.6s" src="assets/th/sub2.png" alt="">
-    <img class="abs tglow" data-lang="th" style="left:653px;top:396px;width:601px;--fd:5.1s;--fdl:-2.6s" src="assets/th/tagline.png" alt="">
-    <img class="abs line-in" data-lang="th" style="left:341px;top:182px;width:1227px;--d:.75s" src="assets/th/title.png" alt="Powering Thailand's Sustainable Future">
-    <img class="abs line-in" data-lang="th" style="left:583px;top:234px;width:730px;--d:1.0s" src="assets/th/sub1.png" alt="ขับเคลื่อนอนาคตที่ยั่งยืนของประเทศไทย">
-    <img class="abs line-in" data-lang="th" style="left:583px;top:313px;width:730px;--d:1.25s" src="assets/th/sub2.png" alt="ด้วยนวัตกรรมพลังงานและเทคโนโลยีอวกาศ">
-    <img class="abs rule" data-lang="th" style="left:653px;top:372px;width:603px;--d:1.5s" src="assets/th/line.png" alt="">
-    <img class="abs line-in" data-lang="th" style="left:653px;top:396px;width:601px;--d:1.75s" src="assets/th/tagline.png" alt="พลังงานไฟฟ้าที่มั่นคง ขับเคลื่อนอนาคตที่ยั่งยืน">
-
-    <!-- language buttons: the current language is greyed out; choose the other one to switch (Home page only) -->
-    <div class="abs lang-btn" data-setlang="en" style="left:1520px;top:58px;--d:.5s"><img class="lang-glow line-in" src="assets/th/lang-en-glow.png" alt=""><img class="lang-pill line-in" src="assets/th/lang-en.png" alt="English"></div>
-    <div class="abs lang-btn" data-setlang="th" style="left:1664px;top:58px;--d:.6s"><img class="lang-glow line-in" src="assets/th/lang-th-glow.png" alt=""><img class="lang-pill line-in" src="assets/th/lang-th.png" alt="ภาษาไทย"></div>
-
-    <div id="menu"></div>
-  </section>
-
-  <!-- =================== PAGE: WHO WE ARE =================== -->
-  <section id="pg-who" class="screen cpage">
-    <img class="abs frame" src="assets/who/frame.jpg" alt="">
-    <div class="abs card" style="clip-path:polygon(384px 33px,370px 35px,357px 39px,349px 43px,335px 53px,41px 347px,26px 367px,16px 387px,10px 407px,10px 411px,8px 419px,8px 427px,7px 429px,7px 1015px,9px 1025px,16px 1037px,23px 1043px,36px 1048px,36px 1049px,1843px 1049px,1843px 1048px,1856px 1043px,1861px 1039px,1866px 1033px,1870px 1025px,1872px 1015px,1872px 73px,1871px 71px,1871px 65px,1869px 61px,1869px 59px,1863px 49px,1852px 39px,1843px 35px,1833px 33px)">
-      <div class="kb">
-        <img class="city-src" src="assets/who/city.jpg" style="left:0;top:0;width:1877px;height:1056px" alt="">
-        <canvas class="ripple" width="750" height="314" style="left:556px;top:684px;width:750px;height:314px"
-                data-x="556" data-y="684" data-mask="assets/who/water-mask.png"></canvas>
-        <img class="sun-rays" src="assets/who/sun-rays.jpg" style="left:14px;top:106px" alt="">
-        <img class="sun-glow" src="assets/who/sun-glow.jpg" style="left:204px;top:296px" alt="">
-        <canvas class="glare" width="938" height="528" data-hi="assets/who/city-hi.jpg"></canvas>
-      </div>
-    </div>
-    <img class="abs cat" src="assets/who/label.png" style="left:84px;top:37px;width:101px" alt="Who We Are">
-    <canvas class="abs cat-sweep" width="202" height="236" style="left:84px;top:37px;width:101px;height:118px"></canvas>
-    <img data-lang="en" class="abs line-in" src="assets/who/title.png"    style="left:390px;top:91px;width:507px;--d:1.55s" alt="EGAT Mission">
-    <img data-lang="en" class="abs rule"    src="assets/who/rule-top.png" style="left:384px;top:165px;width:1055px;--d:1.8s" alt="">
-    <img data-lang="en" class="abs line-in" src="assets/who/p1.png"       style="left:386px;top:194px;width:1054px;--d:2.0s" alt="To provide secure, reliable, and affordable electricity while creating">
-    <img data-lang="en" class="abs line-in" src="assets/who/p2.png"       style="left:386px;top:229px;width:1054px;--d:2.2s" alt="a sustainable energy future for Thailand, enhancing quality of life">
-    <img data-lang="en" class="abs line-in" src="assets/who/p3.png"       style="left:386px;top:265px;width:1054px;--d:2.4s" alt="and supporting national and global climate goals.">
-    <img data-lang="en" class="abs rule"    src="assets/who/rule-bot.png" style="left:384px;top:318px;width:1055px;--d:2.65s" alt="">
-    <!-- Thai text (TH_02_P1.psd) -->
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p1.png" style="left:383px;top:97px;width:1325px;--d:1.55s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p2.png" style="left:383px;top:135px;width:1325px;--d:1.70s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p3.png" style="left:383px;top:174px;width:1325px;--d:1.85s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p4.png" style="left:383px;top:212px;width:1325px;--d:2.00s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p5.png" style="left:383px;top:251px;width:1325px;--d:2.15s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p6.png" style="left:385px;top:312px;width:1174px;--d:2.30s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p7.png" style="left:385px;top:344px;width:1174px;--d:2.45s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/who/th/p8.png" style="left:385px;top:389px;width:1174px;--d:2.60s" alt="">
-    <div class="abs homeBtn" data-home style="left:1780px;top:58px"><img src="assets/who/home.png" alt="Home"></div>
-  </section>
-
-  <!-- =================== PAGE: GROWTH & INVESTMENT =================== -->
-  <section id="pg-growth" class="screen cpage" data-live="3900">
-    <img class="abs frame" src="assets/growth/frame.jpg" alt="">
-    <div class="abs card" style="left:3px;top:0;width:1914px;height:1054px;clip-path:polygon(397px 33px,386px 35px,374px 39px,366px 43px,354px 51px,58px 347px,43px 367px,34px 385px,34px 387px,31px 393px,30px 399px,28px 403px,28px 407px,26px 413px,26px 419px,25px 421px,25px 1021px,29px 1031px,38px 1041px,45px 1045px,55px 1048px,55px 1049px,1859px 1049px,1859px 1048px,1869px 1045px,1878px 1039px,1883px 1033px,1887px 1025px,1889px 1017px,1889px 69px,1887px 61px,1882px 51px,1879px 47px,1875px 43px,1866px 37px,1853px 33px)">
-      <div class="kb">
-        <img class="city-src" src="assets/growth/city.jpg" style="left:0;top:0;width:1914px;height:1054px" alt="">
-        <canvas class="falls" width="200" height="120" style="left:120px;top:730px;width:200px;height:120px" data-mask="assets/growth/fall-mask.png"></canvas>
-        <canvas class="turbines" width="940" height="320" style="left:30px;top:440px;width:470px;height:160px" data-set="growth" data-x="30" data-y="440"></canvas>
-        <img class="sun-rays" src="assets/who/sun-rays.jpg" style="left:1170px;top:2px" alt="">
-        <img class="sun-glow" src="assets/who/sun-glow.jpg" style="left:1360px;top:192px" alt="">
-        <canvas class="glare" width="957" height="527" style="width:1914px;height:1054px" data-hi="assets/growth/city-hi.jpg"></canvas>
-      </div>
-    </div>
-    <img class="abs cat" src="assets/growth/label.png" style="left:31px;top:37px;width:224px" alt="Growth & Investment">
-    <canvas class="abs cat-sweep" width="448" height="216" style="left:31px;top:37px;width:224px;height:108px"></canvas>
-    <img data-lang="en" class="abs line-in" src="assets/growth/t1.png"       style="left:385px;top:92px;width:1202px;--d:1.55s" alt="Powering Thailand's Growth">
-    <img data-lang="en" class="abs line-in" src="assets/growth/t2.png"       style="left:385px;top:161px;width:1202px;--d:1.75s" alt="and Investment">
-    <img data-lang="en" class="abs rule"    src="assets/growth/rule-top.png" style="left:384px;top:241px;width:1206px;--d:2.0s" alt="">
-    <img data-lang="en" class="abs line-in" src="assets/growth/p1.png"       style="left:385px;top:271px;width:1196px;--d:2.2s" alt="Thailand's electric power potential enables large-scale investments, industrial">
-    <img data-lang="en" class="abs line-in" src="assets/growth/p2.png"       style="left:385px;top:305px;width:1196px;--d:2.4s" alt="expansion, smart cities, and future economic corridors.">
-    <img data-lang="en" class="abs rule"    src="assets/growth/rule-bot.png" style="left:384px;top:362px;width:1206px;--d:2.65s" alt="">
-    <!-- yellow tagline bar: comes in last -->
-    <img data-lang="en" class="abs tag-bar"  src="assets/growth/bar.png"      style="left:62px;top:943px;width:795px;--d:3.0s" alt="">
-    <img data-lang="en" class="abs tag-text" src="assets/growth/bar-text.png" style="left:96px;top:975px;width:727px;--d:3.45s" alt="Powering opportunities for a stronger Thailand">
-    <!-- Thai text -->
-    <img data-lang="th" class="abs line-in" src="assets/growth/th/t1.png" style="left:384px;top:96px;width:1042px;--d:1.55s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/growth/th/rule1.png" style="left:384px;top:179px;width:1044px;--d:1.75s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/growth/th/p1.png" style="left:385px;top:205px;width:1043px;--d:1.95s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/growth/th/p2.png" style="left:385px;top:244px;width:1043px;--d:2.15s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/growth/th/rule2.png" style="left:384px;top:298px;width:1044px;--d:2.35s" alt="">
-    <img data-lang="th" class="abs tag-bar" src="assets/growth/th/bar.png" style="left:62px;top:943px;width:510px;--d:2.70s" alt="">
-    <img data-lang="th" class="abs tag-text" src="assets/growth/th/bar-text.png" style="left:95px;top:964px;width:432px;--d:3.15s" alt="">
-    <div class="abs homeBtn" data-home style="left:1780px;top:59px"><img src="assets/growth/home.png" alt="Home"></div>
-  </section>
-
-  <!-- =================== PAGE: EV SOLUTIONS =================== -->
-  <section id="pg-ev" class="screen cpage" data-live="4050">
-    <img class="abs frame" src="assets/ev/frame.jpg" alt="">
-    <div class="abs card" style="left:23px;top:1px;width:1871px;height:1052px;clip-path:polygon(383px 31px,367px 33px,350px 39px,337px 47px,330px 53px,42px 341px,30px 355px,26px 361px,23px 367px,21px 369px,12px 389px,6px 411px,6px 417px,5px 419px,5px 1019px,10px 1031px,18px 1039px,24px 1043px,33px 1046px,33px 1047px,1841px 1047px,1841px 1046px,1845px 1045px,1853px 1041px,1862px 1033px,1868px 1021px,1868px 1017px,1869px 1015px,1869px 69px,1867px 59px,1862px 49px,1857px 43px,1845px 35px,1840px 33px,1829px 31px)">
-      <div class="kb">
-        <img class="city-src" src="assets/ev/city.jpg" style="left:0;top:0;width:1871px;height:1052px" alt="">
-        <canvas class="turbines" width="540" height="280" style="left:70px;top:310px;width:270px;height:140px" data-set="ev" data-x="70" data-y="310"></canvas>
-        <canvas class="chargers" width="1620" height="150" style="left:200px;top:825px;width:810px;height:75px" data-set="ev" data-x="200" data-y="825"></canvas>
-        <img class="obj-src" id="evSign" src="assets/ev/sign-mask.png" style="display:none" alt="">
-        <canvas class="obj-sweep" width="312" height="244" style="left:610px;top:612px;width:156px;height:122px" data-src="evSign"></canvas>
-        <canvas class="glare" width="936" height="526" style="width:1871px;height:1052px" data-hi="assets/ev/city-hi.jpg"></canvas>
-      </div>
-    </div>
-    <img class="abs cat" src="assets/ev/label.png" style="left:35px;top:37px;width:210px" alt="EV Solutions">
-    <canvas class="abs cat-sweep" width="420" height="134" style="left:35px;top:37px;width:210px;height:67px"></canvas>
-    <img data-lang="en" class="abs line-in" src="assets/ev/title.png"    style="left:389px;top:91px;width:1184px;--d:1.55s" alt="Driving Sustainable Mobility">
-    <img data-lang="en" class="abs line-in" src="assets/ev/sub.png"      style="left:387px;top:167px;width:526px;--d:1.8s" alt="EGAT EV Business Solutions">
-    <img data-lang="en" class="abs rule"    src="assets/ev/rule-top.png" style="left:384px;top:221px;width:1189px;--d:2.0s" alt="">
-    <img data-lang="en" class="abs line-in" src="assets/ev/p1.png"       style="left:385px;top:249px;width:1178px;--d:2.2s" alt="Developing EV charging infrastructure and smart mobility solutions">
-    <img data-lang="en" class="abs line-in" src="assets/ev/p2.png"       style="left:385px;top:284px;width:1178px;--d:2.4s" alt="to promote cleaner transportation and reduce greenhouse gas emissions.">
-    <img data-lang="en" class="abs rule"    src="assets/ev/rule-bot.png" style="left:384px;top:340px;width:1189px;--d:2.65s" alt="">
-    <img data-lang="en" class="abs tag-bar"  src="assets/ev/bar.png"      style="left:1106px;top:942px;width:760px;--d:3.0s" alt="">
-    <img data-lang="en" class="abs tag-text" src="assets/ev/bar-text.png" style="left:1139px;top:975px;width:693px;--d:3.45s" alt="Cleaner transportation, brighter communities">
-    <!-- Thai text -->
-    <img data-lang="th" class="abs line-in" src="assets/ev/th/t1.png" style="left:384px;top:96px;width:699px;--d:1.55s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/ev/th/rule1.png" style="left:384px;top:178px;width:996px;--d:1.75s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/ev/th/p1.png" style="left:383px;top:200px;width:998px;--d:1.95s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/ev/th/p2.png" style="left:383px;top:243px;width:998px;--d:2.15s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/ev/th/p3.png" style="left:383px;top:277px;width:998px;--d:2.35s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/ev/th/rule2.png" style="left:384px;top:336px;width:996px;--d:2.55s" alt="">
-    <img data-lang="th" class="abs tag-bar" src="assets/ev/th/bar.png" style="left:1401px;top:942px;width:465px;--d:2.90s" alt="">
-    <img data-lang="th" class="abs tag-text" src="assets/ev/th/bar-text.png" style="left:1437px;top:964px;width:387px;--d:3.35s" alt="">
-    <div class="abs homeBtn" data-home style="left:1780px;top:58px"><img src="assets/ev/home.png" alt="Home"></div>
-  </section>
-
-  <!-- =================== PAGE: AI + SOLAR =================== -->
-  <section id="pg-aisolar" class="screen cpage" data-live="4250">
-    <img class="abs frame" src="assets/aisolar/frame.jpg" alt="">
-    <div class="abs card" style="left:0px;top:0px;width:1904px;height:1053px;clip-path:polygon(407px 32px,391px 34px,378px 38px,370px 42px,356px 52px,62px 346px,47px 366px,38px 384px,38px 386px,35px 392px,31px 406px,31px 410px,29px 418px,29px 426px,28px 428px,28px 1014px,30px 1024px,37px 1036px,44px 1042px,56px 1047px,56px 1048px,1865px 1048px,1865px 1047px,1877px 1042px,1882px 1038px,1887px 1032px,1891px 1024px,1893px 1014px,1893px 72px,1892px 70px,1892px 64px,1890px 60px,1890px 58px,1884px 48px,1873px 38px,1864px 34px,1853px 32px)">
-      <div class="kb">
-        <img class="city-src" src="assets/aisolar/city.jpg" style="left:0;top:0;width:1904px;height:1053px" alt="">
-        <canvas class="fx" width="1270" height="480" style="left:430px;top:520px;width:1270px;height:480px" data-fx="aisolar" data-x="430" data-y="520"></canvas>
-        <img class="sun-rays" src="assets/who/sun-rays.jpg" style="left:1300px;top:60px" alt="">
-        <img class="sun-glow" src="assets/who/sun-glow.jpg" style="left:1490px;top:250px" alt="">
-        <canvas class="glare" width="952" height="526" style="width:1904px;height:1053px" data-hi="assets/aisolar/city-hi.jpg"></canvas>
-      </div>
-    </div>
-    <img class="abs cat" src="assets/aisolar/label.png" style="left:64px;top:37px;width:135px" alt="AI + Solar">
-    <canvas class="abs cat-sweep" width="270" height="236" style="left:64px;top:37px;width:135px;height:118px"></canvas>
-    <img data-lang="en" class="abs line-in" src="assets/aisolar/t1.png" style="left:386px;top:91px;width:1361px;--d:1.55s" alt="AI-Powered Solar Rooftop">
-    <img data-lang="en" class="abs line-in" src="assets/aisolar/t2.png" style="left:386px;top:161px;width:1361px;--d:1.75s" alt="Detection from Satellite Imagery">
-    <img data-lang="en" class="abs rule" src="assets/aisolar/rule-top.png" style="left:384px;top:243px;width:1409px;--d:1.95s" alt="">
-    <img data-lang="en" class="abs line-in" src="assets/aisolar/p1.png" style="left:387px;top:271px;width:1403px;--d:2.15s" alt="Using AI and satellite data to identify and analyze solar rooftops across Thailand,">
-    <img data-lang="en" class="abs line-in" src="assets/aisolar/p2.png" style="left:387px;top:306px;width:1403px;--d:2.35s" alt="providing valuable insights for energy planning, demand forecasting, and grid management.">
-    <img data-lang="en" class="abs rule" src="assets/aisolar/rule-bot.png" style="left:384px;top:362px;width:1409px;--d:2.55s" alt="">
-    <img data-lang="en" class="abs tag-bar" src="assets/aisolar/bar.png" style="left:61px;top:942px;width:668px;--d:2.90s" alt="">
-    <img data-lang="en" class="abs tag-text" src="assets/aisolar/bar-text.png" style="left:99px;top:975px;width:593px;--d:3.35s" alt="From space data to solar opportunities">
-    <!-- Thai text -->
-    <img data-lang="th" class="abs line-in" src="assets/aisolar/th/t1.png" style="left:385px;top:110px;width:717px;--d:1.55s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/aisolar/th/t2.png" style="left:385px;top:165px;width:717px;--d:1.75s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/aisolar/th/rule1.png" style="left:384px;top:228px;width:980px;--d:1.95s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/aisolar/th/p1.png" style="left:383px;top:250px;width:982px;--d:2.15s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/aisolar/th/p2.png" style="left:383px;top:294px;width:982px;--d:2.35s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/aisolar/th/p3.png" style="left:383px;top:333px;width:982px;--d:2.55s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/aisolar/th/rule2.png" style="left:384px;top:381px;width:980px;--d:2.75s" alt="">
-    <img data-lang="th" class="abs tag-bar" src="assets/aisolar/th/bar.png" style="left:61px;top:942px;width:598px;--d:3.10s" alt="">
-    <img data-lang="th" class="abs tag-text" src="assets/aisolar/th/bar-text.png" style="left:98px;top:970px;width:525px;--d:3.55s" alt="">
-    <div class="abs homeBtn" data-home style="left:1780px;top:58px"><img src="assets/aisolar/home.png" alt="Home"></div>
-  </section>
-
-  <!-- =================== PAGE: BIOMASS + SATELLITE =================== -->
-  <section id="pg-biomass" class="screen cpage" data-live="4250">
-    <img class="abs frame" src="assets/biomass/frame.jpg" alt="">
-    <div class="abs card" style="left:0px;top:0px;width:1920px;height:1054px;clip-path:polygon(399px 33px,388px 35px,372px 41px,357px 51px,59px 349px,46px 367px,37px 385px,37px 387px,34px 393px,33px 399px,31px 403px,31px 407px,29px 413px,29px 419px,28px 421px,28px 1019px,30px 1027px,35px 1035px,44px 1043px,53px 1047px,58px 1048px,58px 1049px,1861px 1049px,1861px 1048px,1866px 1047px,1875px 1043px,1886px 1033px,1890px 1025px,1892px 1017px,1892px 69px,1890px 61px,1885px 51px,1882px 47px,1873px 39px,1857px 33px)">
-      <div class="kb">
-        <img class="city-src" src="assets/biomass/city.jpg" style="left:0;top:0;width:1920px;height:1054px" alt="">
-        <canvas class="fx" width="1260" height="550" style="left:20px;top:450px;width:1260px;height:550px" data-fx="biomass" data-x="20" data-y="450"></canvas>
-        <canvas class="mist" width="650" height="240" style="left:1240px;top:545px;width:650px;height:240px" data-tex="assets/biomass/mist.png"></canvas>
-        <canvas class="glare" width="960" height="527" style="width:1920px;height:1054px" data-hi="assets/biomass/city-hi.jpg"></canvas>
-      </div>
-    </div>
-    <img class="abs cat" src="assets/biomass/label.png" style="left:32px;top:37px;width:203px" alt="Biomass + Satellite">
-    <canvas class="abs cat-sweep" width="406" height="238" style="left:32px;top:37px;width:203px;height:119px"></canvas>
-    <img data-lang="en" class="abs line-in" src="assets/biomass/t1.png" style="left:386px;top:96px;width:971px;--d:1.55s" alt="Carbon Neutrality">
-    <img data-lang="en" class="abs line-in" src="assets/biomass/t2.png" style="left:386px;top:165px;width:971px;--d:1.75s" alt="with Space Technology">
-    <img data-lang="en" class="abs rule" src="assets/biomass/rule-top.png" style="left:384px;top:247px;width:1162px;--d:1.95s" alt="">
-    <img data-lang="en" class="abs line-in" src="assets/biomass/p1.png" style="left:385px;top:270px;width:1163px;--d:2.15s" alt="Estimating above-ground biomass for energy crops in Lampang Province">
-    <img data-lang="en" class="abs line-in" src="assets/biomass/p2.png" style="left:385px;top:305px;width:1163px;--d:2.35s" alt="using Landsat 8 satellite data, supporting carbon reduction">
-    <img data-lang="en" class="abs line-in" src="assets/biomass/p3.png" style="left:385px;top:340px;width:1163px;--d:2.55s" alt="and sustainable biomass utilization.">
-    <img data-lang="en" class="abs rule" src="assets/biomass/rule-bot.png" style="left:384px;top:397px;width:1162px;--d:2.75s" alt="">
-    <img data-lang="en" class="abs tag-bar" src="assets/biomass/bar.png" style="left:996px;top:943px;width:870px;--d:3.10s" alt="">
-    <img data-lang="en" class="abs tag-text" src="assets/biomass/bar-text.png" style="left:1033px;top:977px;width:796px;--d:3.55s" alt="Turning natural resources into a cleaner tomorrow">
-    <!-- Thai text -->
-    <img data-lang="th" class="abs line-in" src="assets/biomass/th/t1.png" style="left:386px;top:105px;width:1053px;--d:1.55s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/biomass/th/rule1.png" style="left:384px;top:179px;width:1044px;--d:1.75s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/biomass/th/p1.png" style="left:385px;top:200px;width:1032px;--d:1.95s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/biomass/th/p2.png" style="left:385px;top:239px;width:1032px;--d:2.15s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/biomass/th/rule2.png" style="left:384px;top:298px;width:1044px;--d:2.35s" alt="">
-    <img data-lang="th" class="abs tag-bar" src="assets/biomass/th/bar.png" style="left:1224px;top:943px;width:642px;--d:2.70s" alt="">
-    <img data-lang="th" class="abs tag-text" src="assets/biomass/th/bar-text.png" style="left:1257px;top:965px;width:568px;--d:3.15s" alt="">
-    <div class="abs homeBtn" data-home style="left:1780px;top:59px"><img src="assets/biomass/home.png" alt="Home"></div>
-  </section>
-
-  <!-- =================== PAGE: INSAR + INFRASTRUCTURE =================== -->
-  <section id="pg-insar" class="screen cpage" data-live="4450">
-    <img class="abs frame" src="assets/insar/frame.jpg" alt="">
-    <div class="abs card" style="left:15px;top:6px;width:1880px;height:1057px;clip-path:polygon(385px 27px,374px 29px,362px 33px,354px 37px,343px 45px,45px 343px,33px 359px,22px 381px,22px 383px,19px 389px,16px 401px,16px 405px,14px 413px,14px 421px,13px 423px,13px 1009px,15px 1019px,21px 1029px,30px 1037px,39px 1041px,44px 1042px,44px 1043px,1847px 1043px,1847px 1042px,1852px 1041px,1861px 1037px,1864px 1035px,1873px 1025px,1876px 1019px,1878px 1009px,1878px 67px,1877px 65px,1876px 55px,1871px 45px,1868px 41px,1864px 37px,1855px 31px,1842px 27px)">
-      <div class="kb">
-        <img class="city-src" src="assets/insar/city.jpg" style="left:0;top:0;width:1880px;height:1057px" alt="">
-        <canvas class="ripple" width="1060" height="210" style="left:820px;top:840px;width:1060px;height:210px" data-x="820" data-y="840" data-mask="assets/insar/water-mask.png"></canvas>
-        <canvas class="fx" width="760" height="585" style="left:150px;top:460px;width:760px;height:585px" data-fx="insar" data-x="150" data-y="460"></canvas>
-        <img class="sun-rays" src="assets/who/sun-rays.jpg" style="left:1310px;top:270px" alt="">
-        <img class="sun-glow" src="assets/who/sun-glow.jpg" style="left:1500px;top:460px" alt="">
-        <canvas class="glare" width="940" height="528" style="width:1880px;height:1057px" data-hi="assets/insar/city-hi.jpg"></canvas>
-      </div>
-    </div>
-    <img class="abs cat" src="assets/insar/label.png" style="left:34px;top:38px;width:219px" alt="InSAR + Infrastructure">
-    <canvas class="abs cat-sweep" width="438" height="208" style="left:34px;top:38px;width:219px;height:104px"></canvas>
-    <img data-lang="en" class="abs line-in" src="assets/insar/t1.png" style="left:389px;top:96px;width:1192px;--d:1.55s" alt="Early Warning System for">
-    <img data-lang="en" class="abs line-in" src="assets/insar/t2.png" style="left:389px;top:165px;width:1192px;--d:1.75s" alt="Infrastructure Displacement">
-    <img data-lang="en" class="abs line-in" src="assets/insar/t3.png" style="left:389px;top:234px;width:1192px;--d:1.95s" alt="using InSAR Technology">
-    <img data-lang="en" class="abs rule" src="assets/insar/rule-top.png" style="left:384px;top:316px;width:1265px;--d:2.15s" alt="">
-    <img data-lang="en" class="abs line-in" src="assets/insar/p1.png" style="left:386px;top:343px;width:1265px;--d:2.35s" alt="Monitoring ground deformation and infrastructure stability with satellite-based">
-    <img data-lang="en" class="abs line-in" src="assets/insar/p2.png" style="left:386px;top:378px;width:1265px;--d:2.55s" alt="InSAR technology, enabling early risk detection and enhancing operational safety">
-    <img data-lang="en" class="abs line-in" src="assets/insar/p3.png" style="left:386px;top:413px;width:1265px;--d:2.75s" alt="and long-term reliability.">
-    <img data-lang="en" class="abs rule" src="assets/insar/rule-bot.png" style="left:384px;top:467px;width:1265px;--d:2.95s" alt="">
-    <img data-lang="en" class="abs tag-bar" src="assets/insar/bar.png" style="left:1077px;top:943px;width:789px;--d:3.30s" alt="">
-    <img data-lang="en" class="abs tag-text" src="assets/insar/bar-text.png" style="left:1109px;top:976px;width:725px;--d:3.75s" alt="Safer infrastructure. Stronger energy security.">
-    <!-- Thai text -->
-    <img data-lang="th" class="abs line-in" src="assets/insar/th/t1.png" style="left:385px;top:96px;width:937px;--d:1.55s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/insar/th/t2.png" style="left:385px;top:166px;width:937px;--d:1.75s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/insar/th/rule1.png" style="left:384px;top:259px;width:1166px;--d:1.95s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/insar/th/p1.png" style="left:385px;top:280px;width:1164px;--d:2.15s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/insar/th/p2.png" style="left:385px;top:319px;width:1164px;--d:2.35s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/insar/th/rule2.png" style="left:384px;top:378px;width:1166px;--d:2.55s" alt="">
-    <img data-lang="th" class="abs tag-bar" src="assets/insar/th/bar.png" style="left:1076px;top:943px;width:790px;--d:2.90s" alt="">
-    <img data-lang="th" class="abs tag-text" src="assets/insar/th/bar-text.png" style="left:1102px;top:964px;width:737px;--d:3.35s" alt="">
-    <div class="abs homeBtn" data-home style="left:1780px;top:59px"><img src="assets/insar/home.png" alt="Home"></div>
-  </section>
-
-  <!-- =================== PAGE: SMART ENERGY =================== -->
-  <section id="pg-smart" class="screen cpage" data-live="4250">
-    <img class="abs frame" src="assets/smart/frame.jpg" alt="">
-    <div class="abs card" style="left:0px;top:0px;width:1896px;height:1067px;clip-path:polygon(401px 33px,389px 35px,373px 41px,358px 51px,60px 349px,48px 365px,37px 387px,31px 407px,31px 411px,29px 419px,29px 427px,28px 429px,28px 1015px,30px 1025px,34px 1033px,42px 1041px,49px 1045px,58px 1048px,58px 1049px,1863px 1049px,1863px 1048px,1876px 1043px,1879px 1041px,1888px 1031px,1891px 1025px,1893px 1015px,1893px 73px,1892px 71px,1892px 65px,1890px 61px,1890px 59px,1883px 47px,1879px 43px,1870px 37px,1857px 33px)">
-      <div class="kb">
-        <img class="city-src" src="assets/smart/city.jpg" style="left:0;top:0;width:1896px;height:1067px" alt="">
-        <canvas class="ripple" width="1140" height="325" style="left:740px;top:575px;width:1140px;height:325px" data-x="740" data-y="575" data-mask="assets/smart/water-mask.png"></canvas>
-        <canvas class="falls" width="190" height="130" style="left:1330px;top:695px;width:190px;height:130px" data-mask="assets/smart/fall-mask.png" data-shear="-.12" data-foamy="97"></canvas>
-        <canvas class="turbines" width="1160" height="720" style="left:20px;top:180px;width:580px;height:360px" data-set="smart" data-x="20" data-y="180"></canvas>
-        <img class="sun-rays" src="assets/who/sun-rays.jpg" style="left:-410px;top:20px" alt="">
-        <img class="sun-glow" src="assets/who/sun-glow.jpg" style="left:-220px;top:210px" alt="">
-        <canvas class="glare" width="948" height="533" style="width:1896px;height:1067px" data-hi="assets/smart/city-hi.jpg"></canvas>
-      </div>
-    </div>
-    <img class="abs cat" src="assets/smart/label.png" style="left:72px;top:38px;width:162px" alt="Smart Energy">
-    <canvas class="abs cat-sweep" width="324" height="146" style="left:72px;top:38px;width:162px;height:73px"></canvas>
-    <img data-lang="en" class="abs line-in" src="assets/smart/t1.png" style="left:390px;top:92px;width:917px;--d:1.55s" alt="Integrated Solutions">
-    <img data-lang="en" class="abs line-in" src="assets/smart/t2.png" style="left:390px;top:161px;width:917px;--d:1.75s" alt="for Decarbonization">
-    <img data-lang="en" class="abs line-in" src="assets/smart/sub.png" style="left:387px;top:235px;width:572px;--d:1.95s" alt="EGAT Smart Energy Solutions">
-    <img data-lang="en" class="abs rule" src="assets/smart/rule-top.png" style="left:386px;top:286px;width:1375px;--d:2.15s" alt="">
-    <img data-lang="en" class="abs line-in" src="assets/smart/p1.png" style="left:387px;top:310px;width:1374px;--d:2.35s" alt="Developing integrated energy solutions to reduce carbon emissions, with smart energy">
-    <img data-lang="en" class="abs line-in" src="assets/smart/p2.png" style="left:387px;top:345px;width:1374px;--d:2.55s" alt="management, renewable integration, and innovative services for a cleaner future.">
-    <img data-lang="en" class="abs rule" src="assets/smart/rule-bot.png" style="left:386px;top:398px;width:1375px;--d:2.75s" alt="">
-    <img data-lang="en" class="abs tag-bar" src="assets/smart/bar.png" style="left:61px;top:942px;width:688px;--d:3.10s" alt="">
-    <img data-lang="en" class="abs tag-text" src="assets/smart/bar-text.png" style="left:99px;top:975px;width:613px;--d:3.55s" alt="Clean energy for a low-carbon Thailand">
-    <!-- Thai text -->
-    <img data-lang="th" class="abs line-in" src="assets/smart/th/t1.png" style="left:384px;top:96px;width:886px;--d:1.55s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/smart/th/rule1.png" style="left:384px;top:179px;width:1243px;--d:1.75s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/smart/th/p1.png" style="left:384px;top:206px;width:1243px;--d:1.95s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/smart/th/p2.png" style="left:384px;top:239px;width:1243px;--d:2.15s" alt="">
-    <img data-lang="th" class="abs line-in" src="assets/smart/th/p3.png" style="left:384px;top:278px;width:1243px;--d:2.35s" alt="">
-    <img data-lang="th" class="abs rule" src="assets/smart/th/rule2.png" style="left:384px;top:333px;width:1243px;--d:2.55s" alt="">
-    <img data-lang="th" class="abs tag-bar" src="assets/smart/th/bar.png" style="left:61px;top:943px;width:519px;--d:2.90s" alt="">
-    <img data-lang="th" class="abs tag-text" src="assets/smart/th/bar-text.png" style="left:98px;top:964px;width:449px;--d:3.35s" alt="">
-    <div class="abs homeBtn" data-home style="left:1780px;top:59px"><img src="assets/smart/home.png" alt="Home"></div>
-  </section>
-
-  <!-- =================== CONTENT PAGE (placeholder until artwork arrives) =================== -->
-  <section id="page" class="screen">
-    <img class="abs" src="assets/bg.jpg" style="left:0;top:0;width:1920px;height:1080px" alt="">
-    <div class="abs ph-card"></div>
-    <div class="abs ph-label" id="phLabel"></div>
-    <div class="abs ph-note" id="phTitle"></div>
-    <div class="abs ph-sub">หน้านี้รอไฟล์ artwork — แตะปุ่ม Home เพื่อกลับ</div>
-    <div class="abs home-btn" data-home>
-      <svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3z"/></svg>
-    </div>
-  </section>
-
-  <div id="fader"></div>
-
-  <!-- =================== STAFF: SETTINGS (tap top-left corner ×5) =================== -->
-  <div id="settings" class="admin" hidden>
-    <div class="admin-panel">
-      <div class="admin-head">
-        <span class="mono">EL</span>
-        <div><h2>ตั้งค่า</h2><p>สำหรับเจ้าหน้าที่ · ค่าที่ปรับจะจำไว้ในเครื่องนี้</p></div>
-      </div>
-      <h3>ระดับเสียง</h3>
-      <div class="row"><label for="s-masterVolume">เสียงรวม</label>
-        <button class="step" data-vol="masterVolume" data-d="-5">−</button><input type="range" id="s-masterVolume" min="0" max="100" step="1"><button class="step" data-vol="masterVolume" data-d="5">+</button><output id="v-masterVolume"></output></div>
-      <div class="row"><label for="s-musicVolume">เพลง</label>
-        <button class="step" data-vol="musicVolume" data-d="-5">−</button><input type="range" id="s-musicVolume" min="0" max="100" step="1"><button class="step" data-vol="musicVolume" data-d="5">+</button><output id="v-musicVolume"></output></div>
-      <div class="row"><label for="s-ambienceVolume">เสียงบรรยากาศ</label>
-        <button class="step" data-vol="ambienceVolume" data-d="-5">−</button><input type="range" id="s-ambienceVolume" min="0" max="100" step="1"><button class="step" data-vol="ambienceVolume" data-d="5">+</button><output id="v-ambienceVolume"></output></div>
-      <div class="row"><label for="s-sfxVolume">เสียงกดปุ่ม / เปลี่ยนหน้า</label>
-        <button class="step" data-vol="sfxVolume" data-d="-5">−</button><input type="range" id="s-sfxVolume" min="0" max="100" step="1"><button class="step" data-vol="sfxVolume" data-d="5">+</button><output id="v-sfxVolume"></output></div>
-      <p id="musicStatus" class="status"></p>
-      <h3>หน้าจอ</h3>
-      <div class="row"><label>เมาส์ pointer</label>
-        <button id="hideCursor" class="switch" role="switch" aria-checked="true"><i></i><span>ซ่อน</span></button></div>
-      <h3>เวลารอ (ไม่มีคนแตะ)</h3>
-      <div class="row"><label>กลับหน้า Home หลัง</label>
-        <button class="step" data-step="idleSeconds" data-d="-1">−</button><span class="num"><b id="v-idleSeconds"></b> นาที</span><button class="step" data-step="idleSeconds" data-d="1">+</button></div>
-      <div class="row"><label>เล่น intro หน้า Home ใหม่ทุก</label>
-        <button class="step" data-step="homeReplaySeconds" data-d="-1">−</button><span class="num"><b id="v-homeReplaySeconds"></b> นาที</span><button class="step" data-step="homeReplaySeconds" data-d="1">+</button></div>
-      <div class="admin-foot">
-        <button id="resetDefaults" class="ghost">คืนค่าเริ่มต้น</button>
-        <button id="testAmb" class="ghost">ทดสอบเสียง</button>
-        <button id="settingsClose" class="primary">บันทึกและปิด</button>
-      </div>
-    </div>
+<section class="screen" id="sJoin">
+  <div class="brandbox"><div class="mark">FN</div></div><h1>Find Number</h1><div class="muted">Room <b id="jRoom"></b></div>
+  <div class="card">
+    <input class="name" id="inName" maxlength="14" placeholder="Your name" autocomplete="off">
+    <button class="btn" id="bJoin">JOIN</button>
+    <div class="err" id="jErr"></div>
   </div>
+</section>
 
-  <!-- =================== STAFF: QUIT (tap top-right corner ×5) =================== -->
-  <div id="quit" class="admin" hidden>
-    <div class="admin-panel small">
-      <div class="admin-head"><span class="mono">EL</span><div><h2>ออกจากโปรแกรม?</h2><p>หน้าจอ kiosk จะถูกปิด</p></div></div>
-      <p id="quitHelp" class="status" data-ok="0" hidden>เบราว์เซอร์ไม่อนุญาตให้ปิดหน้าต่างนี้เอง — กด Alt+F4 (Windows) หรือ ⌘Q (Mac) เพื่อออก</p>
-      <div class="admin-foot">
-        <button id="quitCancel" class="ghost">ยกเลิก</button>
-        <button id="quitOk" class="primary">ออกจากโปรแกรม</button>
-      </div>
-    </div>
+<section class="screen" id="sWait">
+  <div class="brandbox"><div class="mark">FN</div></div><h1 id="wName"></h1>
+  <div class="big" id="wMsg">Waiting for the host</div>
+  <div class="muted" id="wSub"></div>
+  <div class="dots"><i></i><i></i><i></i></div>
+</section>
+
+<section class="screen" id="game">
+  <div class="hud">
+    <div class="me" id="gMe"></div>
+    <div class="target"><span class="lab" id="gLab">FIND</span><div class="num" id="gNum">—</div></div>
+    <div class="prog" id="gProg">0/0</div>
   </div>
-</div>
+  <div class="bar"><i id="gBar"></i></div>
+  <div class="boardwrap" id="wrap"><div class="field" id="field"></div></div>
+</section>
 
+<div class="callout" id="callout"></div>
+<div class="cover" id="cover"><div class="card" id="coverCard"></div></div>
+
+<script src="fn-net.js"></script>
 <script>
-/* =========================================================
-   CONFIG — ปรับค่าได้ตรงนี้
-   ========================================================= */
-const CONFIG = {
-  satelliteSeconds: 90,   // เวลาที่ดาวเทียมเคลื่อนข้ามจอ 1 รอบ (วินาที) ยิ่งมากยิ่งช้า
-  glowStep: 0.7,          // ระยะห่างระหว่างปุ่มที่เรืองแสงต่อกัน (วินาที)
-  glowPause: 1.4,         // พักหลังปุ่มสุดท้ายเรืองก่อนเริ่มรอบใหม่ (วินาที)
-  sweepMin: 3,            // light sweep ที่โลโก้ สุ่มเว้นช่วง ต่ำสุด (วินาที)
-  sweepMax: 8,            //   ... สูงสุด (วินาที)
-  sweepDuration: 1.2,     // ความเร็วแสงวิ่งผ่านโลโก้ (วินาที)
-  thrusterColor: [110,180,255],  // สีไอพ่น (R,G,B) เช่น ส้ม = [255,140,40]
-  thrusterLength: 120,    // ความยาวไอพ่น (px)
-  sound: true,            // เปิด/ปิดเสียงทั้งหมด
-  masterVolume: 1,       // ความดังรวม (0–1)
-  ambienceVolume: .25,     // ความดังเสียงบรรยากาศ (0–1)
-  sfxVolume: 1,          // ความดังเสียงกดปุ่ม/เปลี่ยนหน้า (0–1)
-  musicVolume: .6,        // ความดังเพลง music.mp3 (0–1) — ถ้าไม่มีไฟล์ จะเล่นเฉพาะเสียงบรรยากาศ
-  hideCursor: false,       // ซ่อนเมาส์ pointer (true = ซ่อน, false = แสดง)
-  // ค่าความดังและเวลา idle ปรับได้จากหน้า Setting (แตะมุมซ้ายบน 5 ครั้ง) และจำค่าไว้ในเครื่อง
-  idleSeconds: 300,      // ค้างอยู่หน้าเนื้อหาโดยไม่มีคนแตะเกินกี่วินาที → กลับหน้า Home (300 = 5 นาที)
-  homeReplaySeconds: 300, // อยู่หน้า Home โดยไม่มีคนแตะเกินกี่วินาที → เล่น animation หน้า Home ใหม่
-  glareMin: 5,            // หน้าเนื้อหา: แสงแดดกวาดผ่านเมือง สุ่มเว้นช่วง ต่ำสุด (วินาที)
-  glareMax: 9,            //   ... สูงสุด (วินาที)
-  glareDuration: 2.4,     // ความเร็วแสงกวาดผ่าน (วินาที)
-  rippleAmp: 2.2,         // ความแรงคลื่นน้ำ (px) ใกล้ตัว — ไกลออกไปจะเบาลงเอง
-  rippleSpeed: 1.6,       // ความเร็วคลื่น
-  fallSpeed: 90,          // ความเร็วน้ำตก (px/วินาที)
-  turbineRPM: 9,          // ความเร็วกังหันลม (รอบ/นาที) แต่ละต้นจะต่างกันเล็กน้อย
-};
+const $=s=>document.querySelector(s);
+const C=window.FNCore;
+const qs=new URLSearchParams(location.search);
+const ROOM=(qs.get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const AR=0.62;              // fixed board aspect → every phone gets the identical pattern
+const WRONG_LOCK=900;       // ms the board locks after a wrong tap (stops spam-tapping)
+const CALL_MS=2000;         // command mode: number shown in the middle
+let net,cfg=null,state=null,me=null,pid=null,G=null;
 
-/* กังหันลม: ตำแหน่งดุมใบพัด (พิกัดในภาพเมือง) และความยาวใบ */
-const TURBINES = {
-  growth: [
-    {x:80,  y:492, len:32, squash:.9},
-    {x:200, y:494, len:44, squash:.8},
-    {x:154, y:523, len:30, squash:.85},
-    {x:278, y:540, len:30, squash:1},
-    {x:391, y:553, len:27, squash:.9},
-    {x:443, y:528, len:46, squash:.8},
-  ],
-  smart: [ // big turbine in front: rotor is seen at an angle, so it is drawn slightly flattened
-    {x:314, y:349, len:150, sx:.85, sy:.8, fill:'rgba(236,239,246,.97)', stroke:'rgba(140,150,175,.45)'},
-    {x:500, y:439, len:78,  sx:.9,  sy:.9, fill:'rgba(236,239,246,.95)', stroke:'rgba(140,150,175,.45)'},
-    {x:151, y:445, len:50,  sx:.9,  sy:.95, fill:'rgba(232,232,238,.85)', stroke:'rgba(160,160,175,.35)'},
-    {x:243, y:462, len:37,  sx:.9,  sy:.95, fill:'rgba(230,232,240,.85)', stroke:'rgba(160,160,175,.35)'},
-    {x:67,  y:490, len:28,  sx:.9,  sy:.95, fill:'rgba(232,230,232,.8)',  stroke:'rgba(170,165,170,.3)'},
-  ],
-  ev: [   // hazy turbines in the sunlit background — softer colour
-    {x:120, y:367, len:37, squash:.9,  fill:'rgba(222,216,218,.8)', stroke:'rgba(170,160,165,.35)'},
-    {x:186, y:369, len:42, squash:.85, fill:'rgba(222,216,218,.8)', stroke:'rgba(170,160,165,.35)'},
-    {x:234, y:408, len:25, squash:.9,  fill:'rgba(200,204,214,.9)', stroke:'rgba(140,145,160,.4)'},
-    {x:287, y:400, len:33, squash:.85, fill:'rgba(200,204,214,.9)', stroke:'rgba(140,145,160,.4)'},
-  ],
-};
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id))}
+const store={get(k,d){try{const v=localStorage.getItem('fnmp.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('fnmp.'+k,JSON.stringify(v))}catch(e){}}};
 
-/* EV chargers: screen rectangles (พิกัดในภาพเมือง) — แสดงแถบชาร์จไฟวิ่งขึ้นและเรืองเป็นจังหวะ */
-const CHARGERS = {
-  ev: [
-    {x:221, y:841, w:21, h:46},
-    {x:575, y:846, w:16, h:32},
-    {x:775, y:843, w:11, h:35},
-    {x:981, y:846, w:8,  h:32},
-  ],
-};
+/* ---------- sound ---------- */
+const Snd={ctx:null,init(){if(!this.ctx){try{this.ctx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume()},
+  tone(f,d,type,vol,when=0){if(!this.ctx)return;const c=this.ctx,o=c.createOscillator(),g=c.createGain(),t0=c.currentTime+when;o.type=type;o.frequency.setValueAtTime(f,t0);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+d);o.connect(g).connect(c.destination);o.start(t0);o.stop(t0+d+.02)},
+  ok(i){const f=880*Math.pow(2,Math.min(i%25,24)/24);this.tone(f,.09,'triangle',.18);this.tone(f*1.5,.14,'sine',.1,.04);this.tone(f*2,.22,'sine',.07,.08)},
+  bad(){this.tone(220,.12,'sawtooth',.16);this.tone(150,.28,'sawtooth',.16,.1)},
+  tick(){this.tone(880,.06,'sine',.12)},call(){[660,990].forEach((f,i)=>this.tone(f,.16,'triangle',.18,i*.09))},
+  win(){[523,659,784,1047].forEach((f,i)=>this.tone(f,.22,'triangle',.18,i*.1))}};
+document.addEventListener('pointerdown',()=>Snd.init());
 
-/* ปุ่มเมนู: ตำแหน่งจาก PSD (01_cover.psd) — order = ลำดับการเรืองแสงจากซ้ายไปขวา */
-const MENU = [
-  { id:'who',     title:'Who We Are',               lbl:'lbl3', c:[276,423], l:[365,505,89,103]  },
-  { id:'aisolar',    title:'AI + Solar',               lbl:'lbl0', c:[443,695], l:[517,777,119,104] },
-  { id:'growth',  title:'Growth & Investment',      lbl:'lbl4', c:[640,423], l:[667,505,217,104] },
-  { id:'biomass', title:'Biomass + Satellite',      lbl:'lbl1', c:[822,695], l:[863,777,186,104] },
-  { id:'smart',   title:'Smart Energy',             lbl:'lbl5', c:[1005,423],l:[1069,525,142,64] },
-  { id:'insar',   title:'InSAR + Infrastructure',   lbl:'lbl2', c:[1202,695],l:[1227,779,219,100]},
-  { id:'ev',      title:'EV Solutions',             lbl:'lbl6', c:[1369,423],l:[1402,525,202,64] },
-];
-/* Thai home layout (TH_01_cover.psd): circles are a little smaller and sit lower */
-const MENU_TH = {
-  who: { c:[303,473], size:257, l:[389,552,85,99], lbl:'lbl3' },
-  aisolar: { c:[463,734], size:258, l:[535,813,114,99], lbl:'lbl0' },
-  growth: { c:[653,473], size:257, l:[679,552,208,99], lbl:'lbl4' },
-  biomass: { c:[828,734], size:257, l:[867,812,178,100], lbl:'lbl1' },
-  smart: { c:[1003,473], size:257, l:[1064,571,137,61], lbl:'lbl5' },
-  insar: { c:[1192,734], size:258, l:[1216,815,210,96], lbl:'lbl2' },
-  ev: { c:[1352,473], size:258, l:[1384,571,194,61], lbl:'lbl6' },
-};
-
-/* ---------- stage scaling ---------- */
-const stage = document.getElementById('stage');
-function fit(){
-  const s = Math.min(innerWidth/1920, innerHeight/1080);
-  stage.style.transform = `scale(${s}) translate(-50%,-50%)`;
+/* ---------- format ---------- */
+function label(v){
+  if(cfg.kind==='img'){const n=cfg.images[v-1];return `<img src="${C.imgUrl(n)}" alt="">`}
+  return `<span>${String(v).padStart(Math.max(2,String(cfg.count).length),'0')}</span>`;
 }
-addEventListener('resize', fit); fit();
+const PAL={bright:['#FF4D6D','#FF7A1A','#E0A100','#1FAA6B','#00A3C7','#3A86FF','#7B4DFF','#D63CA0'],dark:['#FF5C8A','#FF9F43','#FFD23F','#3DDC97','#4CC9F0','#6C9BFF','#B388FF','#FF77C8'],
+  hardBright:['#3A86FF','#3F7FF0','#4A8CFF','#3576E8','#5B8FF5'],hardDark:['#4CC9F0','#55C2EE','#45BFE8','#5ACFF5','#4DB8E0']};
 
-/* ---------- build menu ---------- */
-const menu = document.getElementById('menu');
-const cycle = MENU.length*CONFIG.glowStep + CONFIG.glowPause;
-function buildMenu(lang){
-  MENU.forEach((m,i)=>{
-    const t = lang==='th' ? MENU_TH[m.id] : null;
-    const c = t ? t.c : m.c, l = t ? t.l : m.l, size = t ? t.size : 268;
-    const dir = t ? 'assets/th/' : 'assets/', lbl = t ? t.lbl : m.lbl;
-    const b = document.createElement('div');
-    b.className = 'abs btn';
-    b.dataset.go = m.id; b.dataset.lang = lang;
-    b.style.cssText = `left:${c[0]}px;top:${c[1]}px;width:${size}px;height:${size}px;--d:${2.0+i*.09}s;--gd:${i*CONFIG.glowStep}s;--cycle:${cycle}s`;
-    b.innerHTML = `<div class="face">
-        <img class="circle" src="${dir}circle.png" alt="" style="width:${size}px;height:${size}px">
-        <img class="lbl" src="${dir}${lbl}.png" alt="${m.title}"
-             style="left:${l[0]-c[0]}px;top:${l[1]-c[1]}px;width:${l[2]}px;height:${l[3]}px">
-      </div><div class="halo"></div>`;
-    menu.appendChild(b);
+/* ---------- boot ---------- */
+(async function(){
+  if(!ROOM){$('#sLoad').innerHTML='<div class="mark">FN</div><div class="big">No room code</div><div class="muted">Scan the QR on the big screen again</div>';return}
+  try{net=await FNNet.connect()}catch(e){$('#sLoad').innerHTML='<div class="mark">FN</div><div class="big">Cannot connect</div><div class="muted">Check your internet and try again</div>';return}
+  $('#jRoom').textContent=ROOM;
+  const SLOT=qs.get('slot')||''; // test helper: several players in one browser
+  pid=store.get('pid.'+ROOM+SLOT,null);
+  $('#inName').value=store.get('name','');
+  net.on(`rooms/${ROOM}/cfg`,v=>{cfg=v;if(cfg)document.documentElement.dataset.theme=cfg.theme||'bright';route()});
+  net.on(`rooms/${ROOM}/state`,v=>{state=v;route()});
+  net.on(`rooms/${ROOM}/brand`,v=>{
+    document.querySelectorAll('.brandbox').forEach(b=>b.innerHTML=v&&v.logo?`<img class="${v.size||'m'}" src="${v.logo}" alt="">`:'<div class="mark">FN</div>');
+    $('#gMe').innerHTML=(v&&v.logo?`<img class="blogo" src="${v.logo}" alt="">`:'')+(me?C.esc(me.name):'');
   });
-}
-buildMenu('en'); buildMenu('th');
-
-/* ---------- satellite timing: start at its design position (x=1512) ---------- */
-const satTrack = document.querySelector('.sat-track');
-const travel = 1960 + 340, startX = 1512 + 340;
-satTrack.style.setProperty('--sat-dur', CONFIG.satelliteSeconds+'s');
-satTrack.style.setProperty('--sat-delay', -(startX/travel*CONFIG.satelliteSeconds)+'s');
-
-/* ---------- logo light sweep at random intervals ---------- */
-const logoImg = document.getElementById('logoImg');
-const sweepCv = document.getElementById('logoSweep');
-const sctx = sweepCv.getContext('2d');
-let sweepTimer, sweepRaf;
-function sweepOnce(){
-  const W = sweepCv.width, H = sweepCv.height, band = W*0.32;
-  const dur = CONFIG.sweepDuration*1000, t0 = performance.now();
-  cancelAnimationFrame(sweepRaf);
-  (function frame(now){
-    const p = Math.min(1,(now-t0)/dur);
-    const e = p<.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;        // easeInOut
-    const x = -band + e*(W+band*2);
-    sctx.clearRect(0,0,W,H);
-    sctx.globalCompositeOperation = 'source-over';
-    sctx.drawImage(logoImg,0,0,W,H);
-    sctx.globalCompositeOperation = 'source-in';
-    const g = sctx.createLinearGradient(x-band/2,0,x+band/2,H*0.35);
-    g.addColorStop(0,'rgba(255,255,255,0)');
-    g.addColorStop(.5,'rgba(255,250,225,1)');
-    g.addColorStop(1,'rgba(255,255,255,0)');
-    sctx.fillStyle = g; sctx.fillRect(0,0,W,H);
-    if (p<1) sweepRaf = requestAnimationFrame(frame);
-    else sctx.clearRect(0,0,W,H);
-  })(t0);
-}
-function scheduleSweep(first){
-  clearTimeout(sweepTimer);
-  const wait = first ? 400 : (CONFIG.sweepMin + Math.random()*(CONFIG.sweepMax-CONFIG.sweepMin))*1000;
-  sweepTimer = setTimeout(()=>{
-    if (document.getElementById('home').classList.contains('active')) sweepOnce();
-    scheduleSweep(false);
-  }, wait);
-}
-function stopSweep(){ clearTimeout(sweepTimer); cancelAnimationFrame(sweepRaf); sctx.clearRect(0,0,sweepCv.width,sweepCv.height); }
-
-/* ---------- satellite thruster (flickering exhaust) ---------- */
-const thr = document.getElementById('thruster');
-const tctx = thr.getContext('2d');
-const NOZZLE = {x:290, y:40};        // nozzle point inside the canvas (canvas is placed so this sits at the module's rear end)
-const ANGLE = 142*Math.PI/180;       // exhaust direction: lower-left, along the module axis
-let flick = 1, flickTarget = 1, puff = 0;
-function drawThruster(){
-  const [r,g,b] = CONFIG.thrusterColor;
-  if (Math.random()<.35) flickTarget = .65 + Math.random()*.5;   // jittery target
-  if (Math.random()<.03) puff = 1;                                // occasional stronger burst
-  flick += (flickTarget-flick)*.35;
-  puff *= .9;
-  const len = CONFIG.thrusterLength*(flick + puff*.35);
-  const W = thr.width, H = thr.height;
-  tctx.setTransform(1,0,0,1,0,0);
-  tctx.clearRect(0,0,W,H);
-  tctx.globalCompositeOperation = 'lighter';
-  tctx.translate(NOZZLE.x-6, NOZZLE.y+6);
-  tctx.rotate(ANGLE);
-  // plume: overlapping soft blobs that widen and fade along the axis
-  const N = 14;
-  for (let i=0;i<N;i++){
-    const t = i/(N-1);
-    const x = t*len + (Math.random()-.5)*3;
-    const y = (Math.random()-.5)*2*t*3;
-    const rad = 7 + t*20*(.9+Math.random()*.2);
-    const a = Math.pow(1-t,1.6)*(.28+.12*flick);
-    const gr = tctx.createRadialGradient(x,y,0,x,y,rad);
-    gr.addColorStop(0,`rgba(${r},${g},${b},${a})`);
-    gr.addColorStop(1,`rgba(${r},${g},${b},0)`);
-    tctx.fillStyle = gr;
-    tctx.beginPath(); tctx.arc(x,y,rad,0,Math.PI*2); tctx.fill();
-  }
-  // hot core near the nozzle
-  const coreLen = len*.35;
-  const cg = tctx.createLinearGradient(0,0,coreLen,0);
-  cg.addColorStop(0,`rgba(255,255,255,${.75*flick})`);
-  cg.addColorStop(1,'rgba(255,255,255,0)');
-  tctx.fillStyle = cg;
-  tctx.beginPath(); tctx.ellipse(coreLen/2,0,coreLen/2,4+flick*1.5,0,0,Math.PI*2); tctx.fill();
-  // nozzle flare
-  const fr = 12 + flick*8 + puff*10;
-  const fg = tctx.createRadialGradient(0,0,0,0,0,fr);
-  fg.addColorStop(0,`rgba(255,255,255,${.85*flick})`);
-  fg.addColorStop(.4,`rgba(${r},${g},${b},${.45*flick})`);
-  fg.addColorStop(1,`rgba(${r},${g},${b},0)`);
-  tctx.fillStyle = fg;
-  tctx.beginPath(); tctx.arc(0,0,fr,0,Math.PI*2); tctx.fill();
-}
-let lastThr = 0;
-(function loop(now){
-  if (document.getElementById('home').classList.contains('active') && now-lastThr > 33){ drawThruster(); lastThr = now; }  // ~30fps flicker
-  requestAnimationFrame(loop);
-})(0);
-
-/* ---------- content pages: play-in + city glare sweep ---------- */
-const pageTimers = [];
-let glareRaf;
-const glareImgs = {};
-document.querySelectorAll('canvas.glare').forEach(cv=>{
-  const im = new Image(); im.src = cv.dataset.hi; glareImgs[cv.dataset.hi] = im;
-});
-function glareOnce(cv){
-  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, band = W*0.22;
-  const hi = glareImgs[cv.dataset.hi];
-  const dur = CONFIG.glareDuration*1000, t0 = performance.now();
-  cancelAnimationFrame(glareRaf);
-  (function frame(now){
-    const p = Math.min(1,(now-t0)/dur);
-    const e = p<.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;
-    const x = -band*1.5 + e*(W+band*3);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0,0,W,H);
-    const g = ctx.createLinearGradient(x-band,0,x+band,H*0.45);    // diagonal band
-    g.addColorStop(0,'rgba(255,255,255,0)');
-    g.addColorStop(.5,'rgba(255,255,255,1)');
-    g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-    ctx.globalCompositeOperation = 'source-in';                    // keep only the bright parts of the scene
-    ctx.drawImage(hi,0,0,W,H);
-    if (p<1) glareRaf = requestAnimationFrame(frame);
-    else ctx.clearRect(0,0,W,H);
-  })(t0);
-}
-/* generic light sweep over a transparent PNG (used for the category label) */
-const sweepRafs = new Map();
-function sweepImage(img, cv, durSec){
-  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, band = Math.max(W,H)*0.45;
-  const dur = durSec*1000, t0 = performance.now();
-  cancelAnimationFrame(sweepRafs.get(cv));
-  (function frame(now){
-    const p = Math.min(1,(now-t0)/dur);
-    const e = p<.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;
-    const y = -band + e*(H+band*2);                 // band travels top-left → bottom-right
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0,0,W,H);
-    ctx.drawImage(img,0,0,W,H);
-    ctx.globalCompositeOperation = 'source-in';
-    const g = ctx.createLinearGradient(0,y-band/2,W*0.5,y+band/2);
-    g.addColorStop(0,'rgba(255,255,255,0)');
-    g.addColorStop(.5,'rgba(255,250,225,1)');
-    g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-    if (p<1) sweepRafs.set(cv, requestAnimationFrame(frame));
-    else ctx.clearRect(0,0,W,H);
-  })(t0);
-}
-
-/* water ripple: shift each row of the water area sideways with a moving sine, then keep only the water (mask) */
-let rippleRaf, rippleSec = null;
-const rippleMasks = {};
-document.querySelectorAll('canvas.ripple').forEach(cv=>{
-  const m = new Image(); m.src = cv.dataset.mask; rippleMasks[cv.dataset.mask] = m;
-});
-function rippleLoop(now){
-  rippleRaf = requestAnimationFrame(rippleLoop);
-  if (!rippleSec || now - (rippleLoop.last||0) < 33) return;    // ~30fps
-  rippleLoop.last = now;
-  const t = now/1000*CONFIG.rippleSpeed;
-  rippleSec.querySelectorAll('canvas.ripple').forEach(cv=>{
-    const src = rippleSec.querySelector('img.city-src');
-    const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
-    const sx0 = +cv.dataset.x, sy0 = +cv.dataset.y, step = 2;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0,0,W,H);
-    for (let y=0; y<H; y+=step){
-      const p = y/H;                                       // 0 = far bank, 1 = near bank
-      const amp = CONFIG.rippleAmp*(.25 + .75*p);
-      const k = .55 - .3*p;                                // far waves are tighter
-      const dx = amp*Math.sin(y*k - t*2.2) + amp*.45*Math.sin(y*k*2.7 + t*3.1);
-      const dy = Math.sin(y*k*.6 - t*1.3)*.6*p;
-      ctx.drawImage(src, sx0 - dx, sy0 + y + dy, W, step, 0, y, W, step);
-    }
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.drawImage(rippleMasks[cv.dataset.mask],0,0,W,H);
-  });
-  rippleSec.querySelectorAll('canvas.falls').forEach(cv=>drawFalls(cv, now/1000));
-  rippleSec.querySelectorAll('canvas.turbines').forEach(cv=>drawTurbines(cv, now/1000));
-  rippleSec.querySelectorAll('canvas.chargers').forEach(cv=>drawChargers(cv, now/1000));
-  rippleSec.querySelectorAll('canvas.fx').forEach(cv=>drawFX(cv, now/1000));
-  rippleSec.querySelectorAll('canvas.mist').forEach(cv=>drawMist(cv, now/1000));
-}
-
-/* waterfall: scrolling streak texture, sheared to the fall's slope, kept inside the white-water mask, plus foam at the base */
-const fallTex = (()=>{
-  const c = document.createElement('canvas'); c.width = 320; c.height = 240;
-  const x = c.getContext('2d');
-  for (let i=0;i<140;i++){
-    const px = Math.random()*c.width, py = Math.random()*c.height;
-    const len = 18 + Math.random()*60, w = .8 + Math.random()*2;
-    const light = Math.random() < .55;
-    const a = light ? .35 + Math.random()*.45 : .12 + Math.random()*.2;
-    const col = light ? '255,255,255' : '90,125,160';
-    for (const dy of [0, -c.height]){                // draw twice so the tile wraps vertically
-      const g = x.createLinearGradient(0,py+dy,0,py+dy+len);
-      g.addColorStop(0,`rgba(${col},0)`); g.addColorStop(.5,`rgba(${col},${a})`); g.addColorStop(1,`rgba(${col},0)`);
-      x.fillStyle = g; x.fillRect(px, py+dy, w, len);
-    }
-  }
-  return c;
+  if(pid)net.on(`rooms/${ROOM}/players/${pid}`,onMe);
+  else{show('sJoin')}
 })();
-const fallMasks = {};
-document.querySelectorAll('canvas.falls').forEach(cv=>{ const m = new Image(); m.src = cv.dataset.mask; fallMasks[cv.dataset.mask] = m; });
-function drawFalls(cv, t){
-  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, TH = fallTex.height;
-  const off = (t*CONFIG.fallSpeed) % TH;
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.clearRect(0,0,W,H);
-  ctx.setTransform(1,0,+(cv.dataset.shear||-.37),1,40,0);   // lean the streaks like the falls
-  ctx.drawImage(fallTex,-40,off-TH); ctx.drawImage(fallTex,-40,off);
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.drawImage(fallMasks[cv.dataset.mask],0,0,W,H);
-  // foam / mist along the base of the falls
-  ctx.globalCompositeOperation = 'lighter';
-  for (let i=0;i<7;i++){
-    const bx = W*.11 + i*W*.105 + Math.sin(t*1.7+i)*3, by = +(cv.dataset.foamy||90) + (i%2)*4 + Math.sin(t*2.3+i*1.9)*2;
-    const r = 11 + Math.sin(t*3.1+i*2.2)*3 + Math.random()*2;
-    const a = .16 + .08*Math.sin(t*4+i) + Math.random()*.05;
-    const g = ctx.createRadialGradient(bx,by,0,bx,by,r);
-    g.addColorStop(0,`rgba(255,255,255,${a})`); g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx,by,r,0,Math.PI*2); ctx.fill();
-  }
-}
 
-/* wind turbines: original blades were removed from the photo; new ones are drawn here and rotate */
-function drawTurbines(cv, t){
-  const ctx = cv.getContext('2d'), S = cv.width/parseFloat(cv.style.width);
-  const ox = +cv.dataset.x, oy = +cv.dataset.y;
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0,0,cv.width,cv.height);
-  TURBINES[cv.dataset.set].forEach((tb,i)=>{
-    const speed = CONFIG.turbineRPM/60*Math.PI*2*(.85 + (i*37%10)/40);
-    const ang = t*speed + i*1.3;
-    ctx.setTransform(S*(tb.sx ?? tb.squash),0,0,S*(tb.sy ?? 1),(tb.x-ox)*S,(tb.y-oy)*S);
-    for (let b=0;b<3;b++){
-      const a = ang + b*Math.PI*2/3;
-      ctx.save(); ctx.rotate(a);
-      const L = tb.len, w = Math.max(1.6, L*.075);
-      ctx.beginPath();                               // tapered, slightly curved blade pointing up
-      ctx.moveTo(-w*.5,0);
-      ctx.quadraticCurveTo(-w*.9,-L*.35,-.35,-L);
-      ctx.lineTo(.35,-L);
-      ctx.quadraticCurveTo(w*.4,-L*.4,w*.5,0);
-      ctx.closePath();
-      ctx.fillStyle = tb.fill || 'rgba(246,248,250,.97)'; ctx.fill();
-      ctx.lineWidth = .5; ctx.strokeStyle = tb.stroke || 'rgba(120,135,155,.55)'; ctx.stroke();
-      ctx.restore();
-    }
-    ctx.beginPath(); ctx.ellipse(0,0,Math.max(1.8,tb.len*.07),Math.max(1.6,tb.len*.06),0,0,Math.PI*2);
-    ctx.fillStyle = tb.fill || '#f2f4f6'; ctx.fill(); ctx.lineWidth=.5; ctx.strokeStyle = tb.stroke || 'rgba(120,135,155,.6)'; ctx.stroke();
-  });
-}
-
-/* ---------- shared drawing helpers for the data-style effects ---------- */
-function ping(ctx, x, y, t, period, rgb, maxR, phase=0){
-  for (const off of [0, .5]){                         // two rings, half a cycle apart
-    const p = (((t+phase)/period + off) % 1);
-    const r = 5 + p*maxR, a = (1-p)*(1-p)*.9;
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.lineWidth = 2.5; ctx.strokeStyle = `rgba(${rgb},${a})`; ctx.stroke();
-  }
-}
-function pathLen(pts){ let L=0; for(let i=1;i<pts.length;i++) L+=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]); return L; }
-function pointAt(pts, s){
-  let d = s*pathLen(pts);
-  for (let i=1;i<pts.length;i++){
-    const [x0,y0]=pts[i-1],[x1,y1]=pts[i], seg=Math.hypot(x1-x0,y1-y0);
-    if (d<=seg){ const k=d/seg; return [x0+(x1-x0)*k, y0+(y1-y0)*k]; }
-    d -= seg;
-  }
-  return pts[pts.length-1];
-}
-function comet(ctx, pts, s, rgb, size){
-  for (let k=14;k>=0;k--){                            // trail first, head last
-    const ss = s - k*.012; if (ss<0) continue;
-    const [x,y] = pointAt(pts, ss);
-    const r = size*(1-k/16), a = (1-k/15)*.85;
-    const g = ctx.createRadialGradient(x,y,0,x,y,r*2.2);
-    g.addColorStop(0,`rgba(255,255,255,${a})`); g.addColorStop(.35,`rgba(${rgb},${a*.7})`); g.addColorStop(1,`rgba(${rgb},0)`);
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,r*2.2,0,Math.PI*2); ctx.fill();
-  }
-}
-function quadScan(ctx, q, p, rgb){                    // light band crossing a floating panel, left → right
-  const xs = q.map(v=>v[0]), x0 = Math.min(...xs), x1 = Math.max(...xs), w = x1-x0;
-  const x = x0 - w*.25 + p*w*1.5, bw = w*.22;
-  ctx.save();
-  ctx.beginPath(); q.forEach(([px,py],i)=> i?ctx.lineTo(px,py):ctx.moveTo(px,py)); ctx.closePath(); ctx.clip();
-  const g = ctx.createLinearGradient(x-bw,0,x+bw,0);
-  g.addColorStop(0,`rgba(${rgb},0)`); g.addColorStop(.5,`rgba(${rgb},.38)`); g.addColorStop(1,`rgba(${rgb},0)`);
-  ctx.fillStyle = g; ctx.fillRect(x0,0,w,2000);
-  ctx.restore();
-}
-const fxImgs = {};
-function fxImg(src){ if(!fxImgs[src]){ const i=new Image(); i.src=src; fxImgs[src]=i; } return fxImgs[src]; }
-fxImg('assets/biomass/heat-mask.png'); fxImg('assets/biomass/mist.png');
-
-/* per-page data effects (coordinates are in the page photo's own pixels) */
-const FX = {
-  aisolar(ctx, t){
-    // 1) satellite scan beam: light bands travelling down the cone
-    const A=[482,550], Lb=[505,700], Rb=[610,660], lerp=(p,q,s)=>[p[0]+(q[0]-p[0])*s, p[1]+(q[1]-p[1])*s];
-    for (let k=0;k<3;k++){
-      const s = ((t/2.4) + k/3) % 1, s2 = Math.min(1, s+.07);
-      const pts = [lerp(A,Lb,s), lerp(A,Rb,s), lerp(A,Rb,s2), lerp(A,Lb,s2)];
-      ctx.beginPath(); pts.forEach(([x,y],i)=> i?ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath();
-      ctx.fillStyle = `rgba(170,235,255,${.55*(1-s)})`; ctx.fill();
-    }
-    // 2) map hotspots ping like radar
-    [[606,676],[702,708],[685,800],[875,836],[857,940]].forEach(([x,y],i)=>ping(ctx,x,y,t,2.2,'255,190,70',26,i*.45));
-    [[565,735],[732,762],[638,841],[784,884]].forEach(([x,y],i)=>ping(ctx,x,y,t,2.6,'120,220,255',20,i*.6+.3));
-    // 3) data travelling from the map to the rooftop panel
-    comet(ctx, [[685,800],[780,822],[875,836],[950,752],[998,752]], (t/2.6)%1, '255,200,90', 4.5);
-    // 4) AI detection: scan line sweeping down the rooftop frame
-    const bx0=1004,bx1=1655,by0=627,by1=878, p=(t/3.6)%1, y=by0+p*(by1-by0);
-    ctx.save(); ctx.beginPath(); ctx.rect(bx0,by0,bx1-bx0,by1-by0); ctx.clip();
-    const g = ctx.createLinearGradient(0,y-60,0,y);
-    g.addColorStop(0,'rgba(255,215,110,0)'); g.addColorStop(1,'rgba(255,215,110,.32)');
-    ctx.fillStyle = g; ctx.fillRect(bx0,y-60,bx1-bx0,60);
-    ctx.fillStyle = 'rgba(255,245,200,.9)'; ctx.fillRect(bx0,y-1.5,bx1-bx0,3);
-    ctx.restore();
-  },
-  biomass(ctx, t){
-    // 1) satellite scan band sweeping along the biomass map (kept inside the map by a mask)
-    const p = Math.min(1, (t % 6.5)/5);
-    const x = -150 + p*1550;
-    ctx.globalCompositeOperation = 'source-over';
-    const g = ctx.createLinearGradient(x-130,0,x+130,120);
-    g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,.5)'); g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle = g; ctx.fillRect(0,500,1300,520);
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.drawImage(fxImg('assets/biomass/heat-mask.png'), 20, 520);
-    ctx.globalCompositeOperation = 'lighter';
-    // 2) floating analysis panels: scan band across each, one after another
-    const Q = [[[579,465],[760,492],[760,612],[579,579]], [[786,582],[930,610],[928,690],[786,662]], [[1017,615],[1262,655],[1262,792],[1017,745]]];
-    Q.forEach((q,i)=>quadScan(ctx, q, ((t/3.3) - i*.33 + 3) % 1, '150,240,255'));
-  },
-  insar(ctx, t){
-    // 1) monitoring pulse running down the displacement band
-    const band = [[178,733],[290,768],[400,790],[490,802],[525,832],[562,862],[640,902],[700,936],[762,967],[822,1002],[872,1042]];
-    comet(ctx, band, (t/3.4)%1, '255,230,120', 6);
-    // 2) warning points ping
-    ping(ctx,515,758,t,1.9,'255,200,40',30,0);
-    ping(ctx,615,805,t,1.9,'255,200,40',30,.95);
-    // 3) analysis panels scan
-    const Q = [[[320,472],[637,522],[637,705],[318,657]], [[689,635],[900,670],[900,800],[689,770]]];
-    Q.forEach((q,i)=>quadScan(ctx, q, ((t/3.3) - i*.5 + 3) % 1, '150,240,255'));
-  },
+$('#bJoin').onclick=async()=>{
+  const name=$('#inName').value.trim().slice(0,14);
+  if(!name){$('#jErr').textContent='Please enter your name';return}
+  if(!state){$('#jErr').textContent='This room is not open — scan the QR again';return}
+  $('#bJoin').disabled=true;
+  pid=pid||('p'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  store.set('pid.'+ROOM+(qs.get('slot')||''),pid);store.set('name',name);
+  await net.set(`rooms/${ROOM}/players/${pid}`,{name,joinedAt:net.now(),prog:0,done:false,gameId:null});
+  net.on(`rooms/${ROOM}/players/${pid}`,onMe);
 };
-function drawFX(cv, t){
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.setTransform(1,0,0,1,-(+cv.dataset.x),-(+cv.dataset.y));
-  ctx.globalCompositeOperation = 'lighter';
-  FX[cv.dataset.fx](ctx, t);
-  ctx.globalCompositeOperation = 'source-over';
-}
-/* drifting valley mist */
-function drawMist(cv, t){
-  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, tex = fxImg(cv.dataset.tex);
-  const tw = tex.width || 900, off = (t*14) % tw;
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.clearRect(0,0,W,H);
-  ctx.globalAlpha = .6;
-  for (let x=-off; x<W; x+=tw) ctx.drawImage(tex, x, 30, tw, 180);
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'destination-in';     // fade in from the left edge
-  const g = ctx.createLinearGradient(0,0,W,0);
-  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(.25,'rgba(0,0,0,1)'); g.addColorStop(1,'rgba(0,0,0,1)');
-  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-  ctx.globalCompositeOperation = 'source-over';
+
+function onMe(v){
+  if(!v){ // removed by host (or never joined)
+    me=null;if(G)stopGame();show('sJoin');$('#bJoin').disabled=false;return}
+  const prevRank=me&&me.rank;me=v;
+  $('#wName').textContent=v.name;const lg=$('#gMe img');$('#gMe').innerHTML=(lg?lg.outerHTML:'')+C.esc(v.name);
+  if(G&&v.rank&&!prevRank)showRank();
+  route();
 }
 
-/* EV charger screens: charge level rising + soft pulse */
-function drawChargers(cv, t){
-  const ctx = cv.getContext('2d'), S = cv.width/parseFloat(cv.style.width);
-  const ox = +cv.dataset.x, oy = +cv.dataset.y;
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.setTransform(S,0,0,S,-ox*S,-oy*S);
-  ctx.globalCompositeOperation = 'lighter';
-  CHARGERS[cv.dataset.set].forEach((c,i)=>{
-    const cycle = 3.2, p = ((t + i*.8) % cycle)/cycle;           // 0..1 fill progress
-    const fillH = c.h*Math.min(1, p*1.15);
-    const pulse = .5 + .5*Math.sin(t*3 + i);
-    const r = Math.min(3, c.w/3);
-    ctx.save();
-    ctx.beginPath(); ctx.roundRect(c.x, c.y, c.w, c.h, r); ctx.clip();
-    ctx.fillStyle = `rgba(60,200,255,${.10 + .12*pulse})`;          // screen glow
-    ctx.fillRect(c.x, c.y, c.w, c.h);
-    const g = ctx.createLinearGradient(0, c.y+c.h-fillH, 0, c.y+c.h);
-    g.addColorStop(0, `rgba(170,255,240,${p<.87 ? .85 : .85*(1-(p-.87)/.13)})`);
-    g.addColorStop(.15,'rgba(60,220,200,.45)');
-    g.addColorStop(1,  'rgba(40,180,220,.25)');
-    ctx.fillStyle = g; ctx.fillRect(c.x, c.y+c.h-fillH, c.w, fillH);
-    ctx.restore();
-  });
-  ctx.globalCompositeOperation = 'source-over';
+/* ---------- state routing ---------- */
+function route(){
+  if(!me||!state||!cfg)return;
+  const playing=state.status==='countdown'||state.status==='playing';
+  const inGame=me.gameId&&me.gameId===state.gameId;
+  if(playing&&inGame){
+    if(!G||G.gameId!==state.gameId)startGame();
+    return;
+  }
+  if(state.status==='ended'&&G&&G.gameId===state.gameId){endGame();return}
+  if(G&&G.gameId!==state.gameId)stopGame();
+  $('#cover').classList.remove('on');
+  show('sWait');
+  if(playing&&!inGame){$('#wMsg').textContent='A game is in progress';$('#wSub').textContent='You will join the next round'}
+  else if(state.status==='ended'&&!G){$('#wMsg').textContent='Game over';$('#wSub').textContent='Waiting for the next round'}
+  else{$('#wMsg').textContent='Waiting for the host';$('#wSub').textContent='You are in · Room '+ROOM}
 }
-requestAnimationFrame(rippleLoop);
 
-function playPage(sec){
-  stopPage();
-  sec.classList.remove('play','live');
-  void sec.offsetWidth;
-  sec.classList.add('play');
-  rippleSec = sec;
-  pageTimers.push(setTimeout(()=>{
-    sec.classList.add('live');
-    const lbl = sec.querySelector('img.cat'), lcv = sec.querySelector('canvas.cat-sweep');
-    if (lbl && lcv){
-      const lloop = first=>{
-        const wait = first ? 1200 : (CONFIG.sweepMin + Math.random()*(CONFIG.sweepMax-CONFIG.sweepMin))*1000;
-        pageTimers.push(setTimeout(()=>{ sweepImage(lbl, lcv, CONFIG.sweepDuration); lloop(false); }, wait));
-      };
-      lloop(true);
+/* ---------- game ---------- */
+function startGame(){
+  stopGame();
+  G={gameId:state.gameId,startAt:state.startAt,seq:C.sequence(cfg),idx:me.prog||0,mis:0,lock:0,running:false,announcing:false,done:!!me.done};
+  show('game');
+  build();
+  updateHUD();
+  const field=$('#field');field.style.visibility='hidden';
+  // countdown synced to host start time
+  const tickDown=()=>{
+    if(!G)return;
+    const left=G.startAt-net.now();
+    if(left>0){
+      const n=Math.ceil(left/1000);
+      if(n!==G.lastN){G.lastN=n;cover(`<div class="muted">GET READY</div><div class="cnum">${n}</div>`);Snd.tick()}
+      G.cd=setTimeout(tickDown,50);return;
     }
-    sec.querySelectorAll('canvas.obj-sweep').forEach(ocv=>{          // light sweep over signage in the photo
-      const src = document.getElementById(ocv.dataset.src);
-      const oloop = first=>{
-        const wait = first ? 2600 : (CONFIG.sweepMin + Math.random()*(CONFIG.sweepMax-CONFIG.sweepMin))*1000 + 1500;
-        pageTimers.push(setTimeout(()=>{ sweepImage(src, ocv, CONFIG.sweepDuration); oloop(false); }, wait));
-      };
-      oloop(true);
-    });
-    const cv = sec.querySelector('canvas.glare');
-    if (!cv) return;
-    const loop = first=>{
-      const wait = first ? 300 : (CONFIG.glareMin + Math.random()*(CONFIG.glareMax-CONFIG.glareMin))*1000;
-      pageTimers.push(setTimeout(()=>{ glareOnce(cv); loop(false); }, wait));
-    };
-    loop(true);
-  }, +(sec.dataset.live||2900)));
-}
-function stopPage(){
-  pageTimers.splice(0).forEach(clearTimeout);
-  cancelAnimationFrame(glareRaf);
-  rippleSec = null;
-  sweepRafs.forEach(id=>cancelAnimationFrame(id));
-  document.querySelectorAll('canvas.cat-sweep,canvas.obj-sweep').forEach(cv=>cv.getContext('2d').clearRect(0,0,cv.width,cv.height));
-  document.querySelectorAll('canvas.glare').forEach(cv=>cv.getContext('2d').clearRect(0,0,cv.width,cv.height));
-}
-
-/* ---------- screens / navigation ---------- */
-const home = document.getElementById('home');
-const page = document.getElementById('page');
-const fader = document.getElementById('fader');
-let glowTimer, busy = false;
-
-function playHome(){
-  home.classList.remove('play','glowing','quick');
-  void home.offsetWidth;                 // restart CSS animations
-  home.classList.add('play');
-  if (typeof Sound !== 'undefined'){ Sound.scene('home'); Sound.intro(); }
-  clearTimeout(glowTimer);
-  stopSweep();
-  glowTimer = setTimeout(()=>{ home.classList.add('glowing'); scheduleSweep(true); }, 2700);
-}
-function show(id){
-  if (busy) return; busy = true;
-  currentId = id;
-  Sound.whoosh(); Sound.scene(id);
-  fader.classList.add('on');
-  setTimeout(()=>{
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-    document.querySelectorAll('.cpage').forEach(s=>s.classList.remove('play','live'));
-    stopPage();
-    if (id==='home'){ home.classList.add('active'); playHome(); }
-    else if (document.getElementById('pg-'+id)){
-      stopSweep(); clearTimeout(glowTimer);
-      const sec = document.getElementById('pg-'+id);
-      sec.classList.add('active'); playPage(sec);
-    }
-    else{
-      stopSweep(); clearTimeout(glowTimer);
-      const m = MENU.find(x=>x.id===id);
-      document.getElementById('phLabel').innerHTML = m.title.replace(/ /g,'<br>');
-      document.getElementById('phTitle').textContent = m.title;
-      page.classList.add('active');
-    }
-    fader.classList.remove('on');
-    setTimeout(()=>busy=false, 350);
-  }, 350);
-}
-
-/* ---------- language ----------
-   Starts in English on every launch. Language can only be changed on the Home page;
-   content pages and the idle return keep whichever language was chosen last. */
-let LANG = 'en';
-function setLang(lang, fromTap){
-  if (lang !== 'en' && lang !== 'th') return;
-  const changed = lang !== LANG;
-  LANG = lang;
-  document.documentElement.dataset.uiLang = lang;
-  document.querySelectorAll('.lang-btn').forEach(b=> b.classList.toggle('is-current', b.dataset.setlang === lang));
-  if (changed && fromTap){
-    home.classList.add('quick');            // the newly shown text/buttons animate in quickly
-  }
-}
-setLang('en');
-
-/* ---------- touch handling (press feedback + tap) ---------- */
-let pressed = null;
-stage.addEventListener('pointerdown', e=>{
-  const t = e.target.closest('[data-go],[data-home],[data-setlang]');
-  if (!t) return;
-  if (t.dataset.go){                       // round hit area for circle buttons
-    const r = t.getBoundingClientRect();
-    const dx = e.clientX-(r.left+r.width/2), dy = e.clientY-(r.top+r.height/2);
-    if (Math.hypot(dx,dy) > r.width/2) return;
-  }
-  if (t.dataset.setlang){                  // only the pill itself, not its soft glow
-    const r = t.getBoundingClientRect(), k = r.width/227;
-    const lx = (e.clientX-r.left)/k, ly = (e.clientY-r.top)/k;
-    if (lx < 40 || lx > 180 || ly < 15 || ly > 82) return;
-  }
-  pressed = t; t.classList.add('pressed');
-  Sound.unlock && Sound.unlock();
-  Sound.ui && Sound.ui(t.dataset.setlang ? 'lang' : t.dataset.home !== undefined ? 'home' : 'menu');
-});
-const release = e=>{
-  if (!pressed) return;
-  const t = pressed; pressed = null;
-  setTimeout(()=>t.classList.remove('pressed'), 120);
-  if (e.type!=='pointerup') return;
-  const over = document.elementFromPoint(e.clientX,e.clientY);
-  if (!over || !t.contains(over)) return;
-  if (t.dataset.setlang) setLang(t.dataset.setlang, true);
-  else if (t.dataset.home!==undefined) show('home'); else show(t.dataset.go);
-};
-addEventListener('pointerup', release);
-addEventListener('pointercancel', release);
-addEventListener('contextmenu', e=>e.preventDefault());
-
-/* =========================================================
-   SOUND — all synthesized with Web Audio (no audio files, works offline)
-   Theme: technology + space. Each page adds its own nature/energy layer.
-   ========================================================= */
-const Sound = (()=>{
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC || !CONFIG.sound) return { scene(){}, click(){}, whoosh(){}, intro(){} };
-  const ctx = new AC();
-  const master = ctx.createGain(); master.gain.value = CONFIG.masterVolume; master.connect(ctx.destination);
-  const ambBus = ctx.createGain(); ambBus.gain.value = CONFIG.ambienceVolume; ambBus.connect(master);
-  const sfxBus = ctx.createGain(); sfxBus.gain.value = CONFIG.sfxVolume; sfxBus.connect(master);
-  // space echo shared by blips and pings
-  const echo = ctx.createDelay(1); echo.delayTime.value = .38;
-  const fb = ctx.createGain(); fb.gain.value = .38;
-  const echoLP = ctx.createBiquadFilter(); echoLP.type='lowpass'; echoLP.frequency.value = 2800;
-  echo.connect(echoLP); echoLP.connect(fb); fb.connect(echo);
-  const echoOut = ctx.createGain(); echoOut.gain.value = .55; echoLP.connect(echoOut); echoOut.connect(master);
-
-  // noise buffers
-  const len = ctx.sampleRate*4;
-  const white = ctx.createBuffer(1,len,ctx.sampleRate), brown = ctx.createBuffer(1,len,ctx.sampleRate);
-  { const w = white.getChannelData(0), b = brown.getChannelData(0); let last = 0;
-    for (let i=0;i<len;i++){ w[i] = Math.random()*2-1; last = (last + .02*w[i])/1.02; b[i] = last*3.5; } }
-  const noise = (buf)=>{ const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.start(); return s; };
-  const lfo = (freq, depth, target)=>{ const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = freq; g.gain.value = depth; o.connect(g); g.connect(target); o.start(); return o; };
-  const layer = ()=>{ const g = ctx.createGain(); g.gain.value = 0; g.connect(ambBus); return g; };
-
-  const L = {};
-  // space pad: low detuned drone with a slowly breathing filter
-  { L.pad = layer();
-    const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value = 520; f.Q.value = 2; f.connect(L.pad);
-    lfo(.05, 260, f.frequency);
-    [[55,'sawtooth',.16],[55.4,'sawtooth',.16],[82.4,'sawtooth',.10],[110.2,'triangle',.12],[164.8,'sine',.05]].forEach(([fr,type,v])=>{
-      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = fr; g.gain.value = v; o.connect(g); g.connect(f); o.start();
-    });
-  }
-  // cosmic wind: very soft airy noise
-  { L.space = layer();
-    const f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value = 900; f.Q.value = .7; f.connect(L.space);
-    noise(white).connect(f); lfo(.07, 500, f.frequency);
-  }
-  // waterfall: deep rumble + spray
-  { L.fall = layer();
-    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = 1100; lp.connect(L.fall);
-    noise(brown).connect(lp);
-    const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value = 3200; bp.Q.value = .6;
-    const sg = ctx.createGain(); sg.gain.value = .08; noise(white).connect(bp); bp.connect(sg); sg.connect(L.fall);
-  }
-  // wind gusts (centre frequency and level wander)
-  { L.wind = layer();
-    const f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value = 500; f.Q.value = 1.1;
-    const g = ctx.createGain(); g.gain.value = .6; noise(white).connect(f); f.connect(g); g.connect(L.wind);
-    setInterval(()=>{ const t = ctx.currentTime;
-      f.frequency.setTargetAtTime(280 + Math.random()*650, t, 1.2);
-      g.gain.setTargetAtTime(.25 + Math.random()*.75, t, 1.5); }, 1600);
-  }
-  // water lapping
-  { L.water = layer();
-    const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value = 700;
-    const g = ctx.createGain(); g.gain.value = .5; noise(brown).connect(f); f.connect(g); g.connect(L.water);
-    lfo(.28, .35, g.gain); lfo(.11, 200, f.frequency);
-  }
-  // electric hum (50 Hz grid) with a gentle buzz
-  { L.hum = layer();
-    const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value = 420; f.connect(L.hum);
-    [[100,'sine',.5],[150,'sine',.18],[200,'sawtooth',.06],[300,'sine',.05]].forEach(([fr,type,v])=>{
-      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = fr; g.gain.value = v; o.connect(g); g.connect(f); o.start();
-    });
-  }
-
-  // one-shot helpers
-  function tone(freq, dur, {type='sine', vol=.2, to=null, attack=.005, bus=sfxBus, send=0}={}){
-    if (ctx.state !== 'running') return;          // never queue sounds while audio is still locked
-    const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = type; o.frequency.setValueAtTime(freq, t);
-    if (to) o.frequency.exponentialRampToValueAtTime(to, t+dur*.8);
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t+attack); g.gain.exponentialRampToValueAtTime(.0001, t+dur);
-    o.connect(g); g.connect(bus);
-    if (send){ const s = ctx.createGain(); s.gain.value = send; g.connect(s); s.connect(echo); }
-    o.start(t); o.stop(t+dur+.05);
-  }
-  function burst(dur, {freq=2000, q=1, vol=.2, type='bandpass', sweepTo=null, bus=sfxBus}={}){
-    if (ctx.state !== 'running') return;
-    const t = ctx.currentTime, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    s.buffer = white; f.type = type; f.frequency.setValueAtTime(freq, t); f.Q.value = q;
-    if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t+dur);
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol, t+dur*.35); g.gain.exponentialRampToValueAtTime(.0001, t+dur);
-    s.connect(f); f.connect(g); g.connect(bus); s.start(t, Math.random()*3); s.stop(t+dur+.05);
-  }
-  const PENTA = [880, 987.8, 1174.7, 1318.5, 1568, 1760, 1975.5];
-
-  // page → ambience mix (0..1 per layer)
-  const MIX = {
-    home:    {pad:1,   space:.55},
-    who:     {pad:.55, space:.2,  water:.8, wind:.25},
-    growth:  {pad:.5,  fall:.75, wind:.45, hum:.35},
-    smart:   {pad:.5,  fall:.6,  wind:.5,  water:.45},
-    ev:      {pad:.55, hum:.4,   space:.2},
-    aisolar: {pad:.65, space:.35},
-    biomass: {pad:.55, wind:.4,  space:.25},
-    insar:   {pad:.55, water:.55, space:.25},
+    $('#cover').classList.remove('on');field.style.visibility='';
+    G.running=true;
+    if(G.done){waitingCover();return}
+    if(cfg.mode==='command')announce();
   };
-  // page → recurring electronic details
-  const DETAIL = {
-    home:    ()=> tone(PENTA[Math.random()*PENTA.length|0], 1.6, {vol:.05, attack:.01, bus:ambBus, send:.6}),
-    ev:      ()=>{ tone(1800+Math.random()*900, .06, {type:'square', vol:.02, bus:ambBus, send:.4}); if (Math.random()<.35) burst(.04,{freq:5000, type:'highpass', vol:.05, bus:ambBus}); },
-    aisolar: ()=> tone(2000+Math.random()*1600, .05, {type:'sine', vol:.035, bus:ambBus, send:.5}),
-    biomass: ()=> tone(1500+Math.random()*1500, .05, {type:'sine', vol:.03, bus:ambBus, send:.5}),
-    insar:   ()=> tone(1700+Math.random()*1200, .05, {type:'sine', vol:.03, bus:ambBus, send:.5}),
-    growth:  ()=>{ if (Math.random()<.5) burst(.035,{freq:4500, type:'highpass', vol:.035, bus:ambBus}); },
-  };
-  const PING = { aisolar:2.2, insar:1.9 };     // sonar pings in step with the map pins
-  let current = null, detailTimer, pingTimer;
-  // background music: music.mp3 next to index.html. Missing file → ambience only.
-  const music = new Audio();
-  let musicOK = false;
-  music.loop = true; music.preload = 'auto';
-  music.addEventListener('canplay', ()=>{ if (!musicOK){ musicOK = true; applyVolumes(); remix(); tryMusic(); } });
-  music.addEventListener('error', ()=>{ musicOK = false; remix(); });
-  // the desktop app passes the location of a music.mp3 placed next to the .exe
-  music.src = new URLSearchParams(location.search).get('music') || 'music.mp3';
-  function tryMusic(){ if (musicOK && music.paused && vol.music > 0) music.play().catch(()=>{}); }
-
-  const vol = { master:CONFIG.masterVolume, music:CONFIG.musicVolume, ambience:CONFIG.ambienceVolume, sfx:CONFIG.sfxVolume };
-  function applyVolumes(){
-    const t = ctx.currentTime;
-    master.gain.setTargetAtTime(vol.master, t, .05);
-    ambBus.gain.setTargetAtTime(vol.ambience, t, .05);
-    sfxBus.gain.setTargetAtTime(vol.sfx, t, .05);
-    music.volume = Math.max(0, Math.min(1, vol.master*vol.music));
-    if (vol.music <= 0) music.pause(); else tryMusic();
-  }
-
-  // crossfade to the page's mix: every layer ramps linearly to its target and is silent within 1.2 s
-  function remix(){
-    const mix = MIX[current] || MIX.home, t = ctx.currentTime, playingMusic = musicOK && vol.music > 0;
-    Object.keys(L).forEach(k=>{
-      let target = mix[k] || 0;
-      if (k === 'pad' && playingMusic) target = 0;   // the music replaces the space drone
-      const g = L[k].gain;
-      g.cancelScheduledValues(t);
-      g.setValueAtTime(g.value, t);
-      g.linearRampToValueAtTime(target, t + 1.2);
-    });
-  }
-  function scene(id){
-    current = id;
-    remix();
-    clearTimeout(detailTimer); clearInterval(pingTimer);
-    if (DETAIL[id]){
-      const next = ()=>{ detailTimer = setTimeout(()=>{ if (current===id){ DETAIL[id](); next(); } }, id==='home' ? 2200+Math.random()*3500 : 500+Math.random()*1600); };
-      next();
-    }
-    if (PING[id]) pingTimer = setInterval(()=> tone(id==='insar'?880:1046.5, 1.1, {vol:.05, attack:.004, bus:ambBus, send:.7}), PING[id]*1000);
-  }
-  return {
-    scene,
-    // ----- Hi-tech UI sound kit: one sound per kind of button -----
-    ui(kind){ ctx.resume().then(()=>{
-      const later = (ms, fn)=> setTimeout(fn, ms);
-      switch(kind){
-        case 'menu':      // open a topic: data chirp + rising 3-note confirm
-          burst(.05, {freq:6000, type:'highpass', vol:.08});
-          tone(700, .09, {to:1600, type:'square', vol:.05});
-          [1318.5, 1760, 2637].forEach((f,i)=> later(45+i*55, ()=> tone(f, .16, {vol:.09, attack:.003, send:.35})));
-          break;
-        case 'home':      // back home: falling two-step blip
-          tone(1600, .08, {type:'square', vol:.045});
-          later(70, ()=> tone(1175, .18, {to:880, vol:.11, send:.3}));
-          burst(.06, {freq:3500, q:3, vol:.05});
-          break;
-        case 'lang':      // switch language: toggle click + pitch swap
-          burst(.025, {freq:7000, type:'highpass', vol:.1});
-          tone(1046.5, .07, {type:'triangle', vol:.1});
-          later(65, ()=> tone(1568, .14, {type:'triangle', vol:.1, send:.3}));
-          break;
-        case 'tick':      // − / + steps and sliders: tiny precise tick
-          tone(2400, .03, {type:'square', vol:.035, attack:.001});
-          burst(.02, {freq:8000, type:'highpass', vol:.04});
-          break;
-        case 'confirm':   // save / OK: bright double chime
-          tone(1760, .12, {vol:.09, send:.3});
-          later(90, ()=> tone(2349, .22, {vol:.09, send:.45}));
-          break;
-        case 'cancel':    // cancel / close: soft low double tap
-          tone(520, .07, {type:'triangle', vol:.1});
-          later(80, ()=> tone(390, .1, {type:'triangle', vol:.08}));
-          break;
-        case 'panel':     // staff panel opens: scanning sweep
-          burst(.35, {freq:800, sweepTo:6000, q:4, vol:.08});
-          tone(440, .3, {to:880, type:'sine', vol:.06, send:.4});
-          break;
-        case 'power':     // quit: power-down
-          tone(880, .6, {to:110, type:'sawtooth', vol:.05});
-          burst(.5, {freq:3000, sweepTo:200, q:2, vol:.08});
-          break;
-      }
-    }); },
-    click(isHome){ this.ui(isHome ? 'home' : 'menu'); },
-    whoosh(){                                      // page transition
-      burst(.75, {freq:350, sweepTo:3800, q:1.4, vol:.22});
-      tone(220, .7, {to:70, vol:.12, type:'sine'});
-      setTimeout(()=> tone(1760, 1.2, {vol:.04, send:.6}), 320);
-    },
-    intro(){                                       // home intro swell
-      burst(2.2, {freq:200, sweepTo:2400, q:.8, vol:.12});
-      [440,659.3,880].forEach((f,i)=> setTimeout(()=> tone(f, 2.4, {vol:.05, attack:.4, send:.5}), 300+i*350));
-    },
-    unlock(){ if (ctx.state !== 'running') ctx.resume(); tryMusic(); },
-    setVolumes(v){ Object.assign(vol, v); applyVolumes(); remix(); },
-    get volumes(){ return {...vol}; },
-    get musicFound(){ return musicOK; },
-    test(kind){ ctx.resume().then(()=>{ if (kind==='sfx') this.click(false); else if (kind==='ambience') this.intro(); }); },
-    suspend(){ ctx.suspend(); music.pause(); },
-    resume(){ ctx.resume(); tryMusic(); },
-    _layers: L,
-    _ctx: ctx, _master: master,   // for diagnostics
-  };
-})();
-['pointerdown','keydown'].forEach(ev=> addEventListener(ev, ()=>Sound.unlock && Sound.unlock(), {capture:true}));
-// phones/tablets: stop all sound when the page is hidden, pick up again when it comes back
-document.addEventListener('visibilitychange', ()=>{ if (!Sound.suspend) return; document.hidden ? Sound.suspend() : Sound.resume(); });
-
-/* =========================================================
-   HIDDEN CORNERS (for staff)
-   - tap top-left corner 5 times  → Settings (volumes, idle times)
-   - tap top-right corner 5 times → Quit
-   ========================================================= */
-const SETTINGS_KEY = 'egat-kiosk-settings';
-const DEFAULTS = { ...CONFIG };            // values written in CONFIG above, used by the reset button
-function loadSettings(){
-  try{
-    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
-    if (s){ ['masterVolume','musicVolume','ambienceVolume','sfxVolume','idleSeconds','homeReplaySeconds'].forEach(k=>{ if (typeof s[k]==='number') CONFIG[k]=s[k]; }); if (typeof s.hideCursor==='boolean') CONFIG.hideCursor=s.hideCursor; }
-  }catch(e){}
-  applySettings();
+  tickDown();
 }
-function applySettings(){
-  Sound.setVolumes && Sound.setVolumes({ master:CONFIG.masterVolume, music:CONFIG.musicVolume, ambience:CONFIG.ambienceVolume, sfx:CONFIG.sfxVolume });
-  document.documentElement.classList.toggle('hide-cursor', !!CONFIG.hideCursor);
-}
-function saveSettings(){
-  try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify({ masterVolume:CONFIG.masterVolume, musicVolume:CONFIG.musicVolume, ambienceVolume:CONFIG.ambienceVolume, sfxVolume:CONFIG.sfxVolume, idleSeconds:CONFIG.idleSeconds, homeReplaySeconds:CONFIG.homeReplaySeconds, hideCursor:CONFIG.hideCursor })); }catch(e){}
-}
-loadSettings();
+function stopGame(){if(!G)return;clearTimeout(G.cd);clearTimeout(G.annT);$('#callout').classList.remove('on');G=null}
 
-const settingsEl = document.getElementById('settings'), quitEl = document.getElementById('quit');
-let adminOpen = false;
-const SLIDERS = [['masterVolume','master'],['musicVolume','music'],['ambienceVolume','ambience'],['sfxVolume','sfx']];
-function renderSettings(){
-  SLIDERS.forEach(([k])=>{
-    const v = Math.round(CONFIG[k]*100);
-    document.getElementById('s-'+k).value = v;
-    document.getElementById('v-'+k).textContent = v;
+function build(){
+  const field=$('#field');field.innerHTML='';field.style.setProperty('--ar',AR);
+  const r=C.rng(cfg.seed),n=cfg.count,hard=cfg.diff==='hard',easy=cfg.diff==='easy';
+  const theme=cfg.theme||'bright';
+  const pal=hard?(theme==='dark'?PAL.hardDark:PAL.hardBright):PAL[theme];
+  const order=C.shuffle(Array.from({length:n},(_,i)=>i+1),r);
+  if(cfg.mode==='grid'){buildGrid(field,r,n,pal,hard);return}
+  let cols=Math.max(1,Math.round(Math.sqrt(n*AR))),rows=Math.max(1,Math.ceil(n/cols));
+  const need=Math.ceil(n*1.18);
+  while(cols*rows<need){if(cols/rows<AR)cols++;else rows++}
+  G.cols=cols;G.rows=rows;
+  const cells=C.shuffle(Array.from({length:cols*rows},(_,i)=>i),r).slice(0,n);
+  const jit=easy?.25:.4;
+  const found=new Set(G.seq.slice(0,G.idx));
+  for(let v=1;v<=n;v++){
+    const c=cells[v-1],cx=c%cols,cy=Math.floor(c/cols);
+    const x=(cx+.5+(r()-.5)*jit)/cols,y=(cy+.5+(r()-.5)*jit)/rows;
+    const s=easy?1:hard?(.7+r()*.55):(.82+r()*.3);
+    const rot=easy?0:hard?Math.round((r()-.5)*300):Math.round((r()-.5)*40);
+    const col=pal[(order[v-1]+Math.floor(r()*3))%pal.length];
+    if(found.has(v))continue;
+    const el=document.createElement('button');
+    el.className='tile'+(cfg.kind==='img'?' imgt':'')+(hard&&cfg.kind!=='img'?' ul':'');
+    el.dataset.v=v;el.innerHTML=label(v);
+    el.style.left=(x*100)+'%';el.style.top=(y*100)+'%';
+    el.style.setProperty('--s',(n>=100?s*.85:s).toFixed(2));
+    el.style.setProperty('--rot',(cfg.kind==='img'?Math.round(rot/4):rot)+'deg');
+    el.style.color=col;
+    field.appendChild(el);
+  }
+  size();
+}
+/* Grid mode: numbers in a table that fills the whole board (same order on every phone) */
+function buildGrid(field,r,n,pal,hard){
+  let cols=Math.max(1,Math.round(Math.sqrt(n*AR))),rows=Math.ceil(n/cols);
+  G.cols=cols;G.rows=rows;G.grid=true;
+  const wrap=document.createElement('div');wrap.className='gridwrap';
+  wrap.style.gridTemplateColumns=`repeat(${cols},1fr)`;wrap.style.gridTemplateRows=`repeat(${rows},1fr)`;
+  const cells=C.shuffle(Array.from({length:cols*rows},(_,i)=>i<n?i+1:0),r);
+  const found=new Set(G.seq.slice(0,G.idx));
+  cells.forEach(v=>{
+    const el=document.createElement('button');
+    if(!v){el.className='tile empty';wrap.appendChild(el);return}
+    el.className='tile'+(hard?' ul':'')+(found.has(v)?' found':'');el.dataset.v=v;el.innerHTML=label(v);
+    el.style.color=pal[Math.floor(r()*pal.length)];
+    wrap.appendChild(el);
   });
-  document.getElementById('v-idleSeconds').textContent = Math.round(CONFIG.idleSeconds/60);
-  document.getElementById('v-homeReplaySeconds').textContent = Math.round(CONFIG.homeReplaySeconds/60);
-  const found = Sound.musicFound;
-  const st = document.getElementById('musicStatus');
-  st.textContent = found ? 'พบไฟล์ music.mp3 — กำลังเล่นเพลง' : 'ไม่พบไฟล์ music.mp3 — เล่นเฉพาะเสียงบรรยากาศ';
-  st.dataset.ok = found ? '1' : '0';
-  const cb = document.getElementById('hideCursor');
-  cb.setAttribute('aria-checked', CONFIG.hideCursor ? 'true' : 'false');
-  cb.querySelector('span').textContent = CONFIG.hideCursor ? 'ซ่อน' : 'แสดง';
+  field.appendChild(wrap);size();
 }
-document.getElementById('hideCursor').addEventListener('click', ()=>{
-  CONFIG.hideCursor = !CONFIG.hideCursor; saveSettings(); applySettings(); renderSettings(); Sound.ui && Sound.ui('tick');
-});
-document.getElementById('resetDefaults').addEventListener('click', ()=>{
-  ['masterVolume','musicVolume','ambienceVolume','sfxVolume','idleSeconds','homeReplaySeconds','hideCursor'].forEach(k=> CONFIG[k] = DEFAULTS[k]);
-  saveSettings(); applySettings(); renderSettings(); Sound.ui && Sound.ui('confirm');
-});
-SLIDERS.forEach(([k,bus])=>{
-  const el = document.getElementById('s-'+k);
-  el.addEventListener('input', ()=>{
-    CONFIG[k] = el.value/100;
-    document.getElementById('v-'+k).textContent = el.value;
-    Sound.setVolumes && Sound.setVolumes({[bus]: CONFIG[k]});
-  });
-  el.addEventListener('change', ()=>{ saveSettings(); Sound.ui && Sound.ui('tick'); });
-});
-document.querySelectorAll('[data-step]').forEach(b=> b.addEventListener('click', ()=>{
-  const k = b.dataset.step, d = +b.dataset.d;
-  const min = Math.max(1, Math.min(30, Math.round(CONFIG[k]/60) + d));
-  CONFIG[k] = min*60; saveSettings(); renderSettings();
-  Sound.ui && Sound.ui('tick');
-}));
-document.querySelectorAll('[data-vol]').forEach(b=> b.addEventListener('click', ()=>{
-  const k = b.dataset.vol, el = document.getElementById('s-'+k);
-  el.value = Math.max(0, Math.min(100, +el.value + +b.dataset.d));
-  el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change'));
-}));
-document.getElementById('testAmb').addEventListener('click', ()=> Sound.test && Sound.test('ambience'));
-document.getElementById('settingsClose').addEventListener('click', ()=>{ Sound.ui && Sound.ui('confirm'); settingsEl.hidden = true; adminOpen = false; lastTouch = Date.now(); });
-document.getElementById('quitCancel').addEventListener('click', ()=>{ Sound.ui && Sound.ui('cancel'); quitEl.hidden = true; adminOpen = false; lastTouch = Date.now(); });
-document.getElementById('quitOk').addEventListener('click', ()=>{
-  Sound.ui && Sound.ui('power');
-  setTimeout(()=>{
-  Sound.suspend && Sound.suspend();
-  if (window.kioskApp) { window.kioskApp.quit(); return; }   // desktop app (.exe)
-  window.close();
-  setTimeout(()=>{ document.getElementById('quitHelp').hidden = false; }, 400);   // the browser refused to close this window
-}, 650);   // let the power-down sound play first
-});
-function openSettings(){ Sound.ui && Sound.ui('panel'); renderSettings(); quitEl.hidden = true; settingsEl.hidden = false; adminOpen = true; }
-function openQuit(){ Sound.ui && Sound.ui('panel'); settingsEl.hidden = true; document.getElementById('quitHelp').hidden = true; quitEl.hidden = false; adminOpen = true; }
+function size(){
+  if(!G)return;const f=$('#field');
+  const w=f.clientWidth,h=f.clientHeight;
+  if(G.grid){const gap=Math.max(3,Math.min(8,w/80));f.style.setProperty('--ggap',gap+'px');f.style.setProperty('--cell',Math.min((w-gap*(G.cols-1))/G.cols,(h-gap*(G.rows-1))/G.rows)+'px');return}
+  f.style.setProperty('--cell',Math.min(w/G.cols,h/G.rows)+'px');
+}
+window.addEventListener('resize',size);
 
-const cornerTaps = { tl:[], tr:[] };
-stage.addEventListener('pointerdown', e=>{
-  if (adminOpen) return;
-  const r = stage.getBoundingClientRect(), s = r.width/1920;
-  const x = (e.clientX - r.left)/s, y = (e.clientY - r.top)/s;
-  const corner = (x < 160 && y < 160) ? 'tl' : (x > 1760 && y < 52) || (x > 1872 && y < 160) ? 'tr' : null;
-  if (!corner){ cornerTaps.tl.length = cornerTaps.tr.length = 0; return; }
-  const now = performance.now(), list = cornerTaps[corner];
-  list.push(now);
-  while (list.length && now - list[0] > 3000) list.shift();     // 5 taps within 3 seconds
-  if (list.length >= 5){ list.length = 0; corner === 'tl' ? openSettings() : openQuit(); }
-}, true);
+function updateHUD(){
+  if(!G)return;
+  const t=G.seq[G.idx];
+  $('#gNum').classList.toggle('im',cfg.kind==='img');
+  $('#gNum').innerHTML=(t==null||(cfg.mode==='command'&&(G.announcing||!G.running)))?'—':label(t);
+  $('#gLab').textContent='FIND';
+  $('#gProg').textContent=G.idx+'/'+G.seq.length;
+  $('#gBar').style.width=(G.idx/G.seq.length*100)+'%';
+}
 
-/* ---------- idle timer ----------
-   - on a content page: no touch for CONFIG.idleSeconds → back to Home
-   - on Home: no touch for CONFIG.homeReplaySeconds → replay the Home intro animation */
-let currentId = 'home', lastTouch = Date.now();
-addEventListener('pointerdown', ()=>{ lastTouch = Date.now(); }, true);
-setInterval(()=>{
-  if (adminOpen){ lastTouch = Date.now(); return; }   // never time out while staff panels are open
-  const idle = (Date.now() - lastTouch)/1000;
-  if (currentId !== 'home' && idle >= CONFIG.idleSeconds){
-    lastTouch = Date.now();
-    show('home');
-  } else if (currentId === 'home' && idle >= CONFIG.homeReplaySeconds && !busy){
-    lastTouch = Date.now();
-    fader.classList.add('on');                          // short fade to black, then replay
-    setTimeout(()=>{ playHome(); fader.classList.remove('on'); }, 400);
+function announce(){
+  if(!G||G.done)return;
+  const t=G.seq[G.idx];if(t==null)return;
+  const c=$('#callout'),hud=$('#gNum');
+  G.announcing=true;$('#field').classList.add('dim');updateHUD();
+  c.innerHTML=label(t);c.classList.toggle('im',cfg.kind==='img');c.classList.remove('on');void c.offsetWidth;c.classList.add('on');Snd.call();
+  G.annT=setTimeout(()=>{
+    if(!G)return;
+    const a=c.getBoundingClientRect(),b=hud.getBoundingClientRect();
+    const dx=(b.left+b.width/2)-(a.left+a.width/2),dy=(b.top+b.height/2)-(a.top+a.height/2),sc=b.height/a.height;
+    const an=c.animate([{transform:'translate(-50%,-50%) scale(1)'},{transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(${sc})`}],{duration:320,easing:'cubic-bezier(.5,0,.2,1)',fill:'forwards'});
+    an.onfinish=()=>{c.classList.remove('on');an.cancel();if(!G)return;G.announcing=false;$('#field').classList.remove('dim');updateHUD();hud.classList.add('pop');setTimeout(()=>hud.classList.remove('pop'),120)};
+  },CALL_MS);
+}
+
+$('#field').addEventListener('pointerdown',e=>{
+  const el=e.target.closest('.tile');
+  if(!el||!G||!G.running||G.done||G.announcing)return;
+  if(state.status==='ended')return;
+  e.preventDefault();
+  if(performance.now()<G.lock)return;
+  const v=+el.dataset.v,t=G.seq[G.idx];
+  if(v===t){
+    el.classList.add('found');sparkle(el);G.idx++;Snd.ok(G.idx);
+    const hud=$('#gNum');hud.classList.add('pop');setTimeout(()=>hud.classList.remove('pop'),120);
+    updateHUD();
+    if(G.idx>=G.seq.length){finish();return}
+    net.update(`rooms/${ROOM}/players/${pid}`,{prog:G.idx,mis:G.mis});
+    if(cfg.mode==='command')setTimeout(()=>{if(G&&!G.done)announce()},250);
+  }else{
+    G.mis++;Snd.bad();G.lock=performance.now()+WRONG_LOCK;
+    el.classList.remove('wrong');void el.offsetWidth;el.classList.add('wrong');
+    const f=$('#field');f.classList.add('lock');setTimeout(()=>f.classList.remove('lock'),WRONG_LOCK);
+    const g=$('#game');g.classList.remove('shake');void g.offsetWidth;g.classList.add('shake');setTimeout(()=>g.classList.remove('shake'),450);
+    try{navigator.vibrate&&navigator.vibrate([90,40,90])}catch(_){}
   }
-}, 1000);
-
-/* ---------- preload everything, then start ---------- */
-Promise.all([...document.images].map(img=>img.decode().catch(()=>{}))).then(()=>{
-  home.classList.add('active');
-  playHome();
 });
+function sparkle(el){
+  const r=$('#field').getBoundingClientRect(),b=el.getBoundingClientRect();
+  const cx=b.left+b.width/2-r.left,cy=b.top+b.height/2-r.top;
+  const a=document.createElement('div');a.className='star';a.style.left=(cx+b.width*.32)+'px';a.style.top=(cy-b.height*.3)+'px';
+  const s=document.createElement('div');s.className='star s2';s.style.left=(cx-b.width*.38)+'px';s.style.top=(cy+b.height*.25)+'px';
+  $('#field').append(a,s);setTimeout(()=>{a.remove();s.remove()},650);
+}
+function finish(){
+  G.done=true;
+  const ms=Math.max(0,net.now()-G.startAt);
+  net.update(`rooms/${ROOM}/players/${pid}`,{prog:G.idx,mis:G.mis,done:true,ms});
+  Snd.win();
+  waitingCover(ms);
+}
+function fmt(ms){return (ms/1000).toFixed(2)}
+function cover(html){$('#coverCard').innerHTML=html;$('#cover').classList.add('on')}
+function waitingCover(ms){
+  if(me&&me.rank){showRank();return}
+  cover(`<div class="big">Finished!</div><div class="res">${fmt(ms!=null?ms:(me&&me.ms)||0)}<small style="font-size:18px">s</small></div><div class="muted">Waiting for results</div><div class="dots"><i></i><i></i><i></i></div>`);
+}
+function showRank(){
+  if(!me||!me.rank)return;
+  const res=me.done?`${fmt(me.ms||0)}<small style="font-size:18px">s</small>`:`${me.prog||0}/${G?G.seq.length:''}`;
+  cover(`<div class="muted">YOUR RANK</div><div class="rank">${me.rank}</div><div class="res">${res}</div><div class="muted">See the big screen</div>`);Snd.win();
+}
+function endGame(){
+  if(!G)return;
+  G.running=false;clearTimeout(G.annT);$('#callout').classList.remove('on');$('#field').classList.remove('dim');
+  if(me&&me.rank){showRank();return}
+  if(G.done){waitingCover();return}
+  cover(`<div class="big">Game over</div><div class="muted">You found</div><div class="res">${G.idx}/${G.seq.length}</div><div class="muted">See the big screen</div>`);
+}
 </script>
 </body>
 </html>

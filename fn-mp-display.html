@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="bright">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find Number — Display</title>
+<style>
+:root{--font:"Segoe UI","Helvetica Neue",Arial,"Leelawadee UI",system-ui,sans-serif}
+html[data-theme="bright"]{--bg:#FFF6E9;--surface:#FFFFFF;--surface2:#FFEFD6;--line:rgba(40,30,60,.12);--text:#231B33;--muted:#6E6680;--accent:#FF4D6D;--accent2:#3A86FF;--accent3:#F5B700;--ok:#1FAA6B;--bad:#E5383B;--ink:#FFFFFF;--shadow:0 5px 0 rgba(35,27,51,.12)}
+html[data-theme="dark"]{--bg:#121419;--surface:#1C1F27;--surface2:#262A35;--line:rgba(255,255,255,.10);--text:#F3F2F7;--muted:#9BA1B0;--accent:#FF5C8A;--accent2:#4CC9F0;--accent3:#FFD23F;--ok:#3DDC97;--bad:#FF5A5F;--ink:#121419;--shadow:0 5px 0 rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}
+button,input,select{font-family:inherit;color:inherit}
+.app{position:fixed;inset:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:14px;padding:12px 22px;background:var(--surface);border-bottom:2px solid var(--line);min-height:76px}
+.brand{display:flex;align-items:center;gap:14px}
+.mark{width:50px;height:50px;border-radius:15px;background:var(--accent);color:var(--ink);display:grid;place-items:center;font-weight:900;font-size:21px;box-shadow:var(--shadow);flex:none}
+.logo{display:block;object-fit:contain;max-width:260px}
+.logo.s{height:44px}.logo.m{height:60px}.logo.l{height:84px}
+.top h1{margin:0;font-size:26px;font-weight:900;letter-spacing:-.01em}
+.top .sub{color:var(--muted);font-weight:700;font-size:14px}
+.pill{background:var(--surface2);border-radius:999px;padding:8px 16px;font-weight:800;font-size:16px;white-space:nowrap}
+.pill b{color:var(--accent)}
+.sp{flex:1}
+.btn{white-space:nowrap;height:46px;padding:0 18px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font-weight:800;font-size:16px;cursor:pointer}
+.btn.pri{background:var(--accent);color:var(--ink);border-color:transparent;box-shadow:var(--shadow)}
+.btn.warn{color:var(--bad)}
+.btn:active{transform:translateY(2px);box-shadow:none}
+.main{flex:1;display:flex;min-height:0}
+.stage{flex:1;position:relative;overflow:hidden;padding:20px 20px 110px;display:flex;gap:24px;min-width:0}
+.qrbig{display:none;flex:none;width:min(32%,400px);align-self:center;background:var(--surface);border:2px solid var(--line);border-radius:26px;padding:20px;text-align:center;box-shadow:var(--shadow)}
+.qrbig.on{display:block}
+.qrbig .t{font-weight:900;font-size:22px;margin-bottom:10px;letter-spacing:.02em}
+.qr{background:#fff;border-radius:18px;padding:14px;border:2px solid var(--line)}
+.qr svg{display:block;width:100%;height:auto}
+.room{font-size:56px;font-weight:900;letter-spacing:.12em;margin-top:8px}
+.url{font-size:12px;color:var(--muted);word-break:break-all;font-weight:600;margin-top:4px}
+.bubbles{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:var(--gap,16px);justify-content:center;align-content:center;height:100%}
+.hint{align-self:center;color:var(--muted);font-weight:800;font-size:24px}
+/* winners column (more than one winner) */
+.wcol{display:none;width:300px;flex:none;background:var(--surface);border-left:2px solid var(--line);padding:20px;overflow-y:auto}
+.wcol.on{display:block}
+.wcol h3{margin:0 0 14px;font-size:22px;font-weight:900;letter-spacing:.02em}
+.wrow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:16px;background:var(--surface2);margin-bottom:10px;animation:slideIn .45s cubic-bezier(.2,1.5,.4,1) both}
+.wrow .r{width:42px;height:42px;border-radius:50%;background:var(--accent3);color:#231B33;display:grid;place-items:center;font-weight:900;font-size:20px;flex:none}
+.wrow .n{font-weight:900;font-size:19px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wrow .tm{font-weight:800;color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.wrow.empty{background:none;border:2px dashed var(--line);animation:none}
+.wrow.empty .r{background:var(--surface2);color:var(--muted)}
+.wrow.empty .n{color:var(--muted);font-weight:700}
+@keyframes slideIn{from{transform:translateX(40px);opacity:0}}
+/* bubbles */
+.bub{position:relative;width:var(--bs,150px);height:var(--bs,150px);border-radius:50%;background:var(--surface);box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .3s;border:3px solid var(--line)}
+.bub svg.ring{position:absolute;inset:-3px;width:calc(100% + 6px);height:calc(100% + 6px);transform:rotate(-90deg)}
+.bub svg.ring circle{fill:none;stroke-width:6}
+.bub svg.ring .bg{stroke:transparent}
+.bub svg.ring .fg{stroke:var(--ok);stroke-linecap:round;transition:stroke-dashoffset .3s}
+.bub .nm{font-weight:800;font-size:calc(var(--bs) * .12);max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.bub .val{font-weight:900;font-size:calc(var(--bs) * var(--nf,.3));line-height:1.05;font-variant-numeric:tabular-nums;transition:font-size .35s cubic-bezier(.2,1.4,.4,1)}
+.bub .val.near{color:var(--bad);animation:blink .55s steps(2,jump-none) infinite}
+@keyframes blink{50%{opacity:.25}}
+.bub .of{font-weight:700;font-size:calc(var(--bs) * .1);color:var(--muted)}
+.bub .x{position:absolute;top:2%;right:2%;width:30px;height:30px;border-radius:50%;border:0;background:var(--surface2);font-weight:900;cursor:pointer;color:var(--muted)}
+.bub .rk{position:absolute;top:-6%;left:-6%;width:calc(var(--bs) * .34);height:calc(var(--bs) * .34);min-width:34px;min-height:34px;border-radius:50%;background:var(--accent3);color:#231B33;display:grid;place-items:center;font-weight:900;font-size:calc(var(--bs) * .17);box-shadow:var(--shadow)}
+.bub.done{border-color:var(--accent3)}
+.bub.pop{animation:pop .7s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.35)}100%{transform:scale(1)}}
+.bub.join{animation:jn .4s cubic-bezier(.2,1.6,.4,1)}
+@keyframes jn{from{transform:scale(.2);opacity:0}}
+.frozen .bub{filter:saturate(.4);opacity:.6}
+/* bottom-centre action */
+.dock{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:12;display:flex;gap:12px}
+.go{height:72px;padding:0 54px;border-radius:999px;border:0;background:var(--accent);color:var(--ink);font-weight:900;font-size:26px;letter-spacing:.08em;box-shadow:0 6px 0 rgba(0,0,0,.18);cursor:pointer}
+.go:active{transform:translateY(4px);box-shadow:none}
+.go.sec{background:var(--surface);color:var(--text);border:3px solid var(--line);font-size:20px;height:60px;padding:0 34px}
+.go.sec.warn{color:var(--bad)}
+/* settings popup */
+.modal{position:fixed;inset:0;background:rgba(10,10,16,.55);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+.modal.on{display:flex}
+.panel{background:var(--surface);border-radius:26px;width:min(760px,100%);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 0 rgba(0,0,0,.18);animation:zoom .28s cubic-bezier(.2,1.4,.4,1)}
+@keyframes zoom{from{transform:scale(.7);opacity:0}}
+.panel header{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:2px solid var(--line)}
+.panel header h2{margin:0;font-size:24px;font-weight:900;flex:1}
+.panel .body{overflow-y:auto;padding:6px 22px 22px;display:grid;grid-template-columns:1fr 1fr;gap:0 26px}
+.group{margin-top:16px}
+.group.full{grid-column:1/-1}
+.group .lbl{font-weight:800;font-size:13px;margin-bottom:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:9px 14px;border-radius:11px;border:2px solid transparent;background:var(--surface2);font-weight:800;font-size:15px;cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--ink)}
+.seg input[type=text]{flex:1;min-width:200px;padding:9px 12px;border-radius:11px;border:2px solid var(--line);background:var(--bg);font-weight:700}
+.note{font-size:12px;color:var(--muted);font-weight:600;margin-top:6px}
+.err{color:var(--bad);font-weight:800;font-size:13px;margin-top:6px}
+.lock{background:var(--surface2);border-radius:12px;padding:10px 14px;font-weight:800;color:var(--muted);margin-top:14px;grid-column:1/-1}
+.logoprev{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.logoprev .box{height:64px;min-width:64px;padding:6px;border-radius:12px;border:2px dashed var(--line);display:grid;place-items:center;background:var(--bg)}
+.logoprev img{max-height:50px;max-width:200px;display:block}
+/* winner overlay */
+.ov{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:20;background:rgba(10,10,16,.6);padding:30px}
+.ov.on{display:flex}
+body:has(.ov.on) .dock{display:none}
+.ov h2{margin:0 0 24px;color:#fff;font-size:min(7vw,64px);font-weight:900;letter-spacing:.04em}
+.winners{display:flex;gap:4vw;align-items:flex-end;justify-content:center;flex-wrap:wrap}
+.winners .bub{animation:zoomIn .45s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes zoomIn{from{transform:scale(.15);opacity:0}}
+.ov .rest{margin-top:26px;background:var(--surface);border-radius:18px;padding:12px 18px;max-height:24vh;overflow-y:auto;min-width:min(520px,90vw);font-weight:700}
+.ov .rest div{display:flex;justify-content:space-between;gap:20px;padding:5px 0;border-bottom:1px solid var(--line)}
+.ov .acts{display:flex;gap:12px;margin-top:20px}
+canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:25}
+.cd{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:15;pointer-events:none}
+.cd.on{display:flex}
+.cd b{font-size:min(30vw,300px);font-weight:900;color:var(--accent);animation:zoomIn .3s}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand" id="brand"><div class="mark">FN</div></div>
+    <div><h1>Find Number</h1><div class="sub" id="modeLine"></div></div>
+    <div class="pill">Room <b id="roomPill">—</b></div>
+    <div class="pill"><span id="pCount">0</span> players</div>
+    <div class="pill" id="goalPill"></div>
+    <div class="sp"></div>
+    <button class="btn" id="bSet">Settings</button>
+    <button class="btn" id="bFs">Fullscreen</button>
+  </div>
+  <div class="main">
+    <div class="stage" id="stage">
+      <div class="qrbig" id="qrbig"><div class="t">SCAN TO JOIN</div><div class="qr" id="qr"></div><div class="room" id="room2">—</div><div class="url" id="url"></div></div>
+      <div class="bubbles" id="bubbles"><div class="hint" id="hint">Waiting for players…</div></div>
+    </div>
+    <aside class="wcol" id="wcol"></aside>
+  </div>
+</div>
+<div class="dock" id="dock"></div>
+<div class="modal" id="modal"><div class="panel"><header><h2>Settings</h2><button class="btn pri" id="bClose">Done</button></header><div class="body" id="setup"></div></div></div>
+<div class="cd" id="cd"><b id="cdNum">3</b></div>
+<div class="ov" id="ov"></div>
+<canvas id="fx"></canvas>
+<input type="file" id="logoFile" accept="image/*" style="display:none">
+
+<script src="qrcode.js"></script>
+<script src="img/images.js" onerror="window.FN_IMAGES=window.FN_IMAGES||[]"></script>
+<script src="fn-net.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const C=window.FNCore;
+const store={get(k,d){try{const v=localStorage.getItem('fnmp.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('fnmp.'+k,JSON.stringify(v))}catch(e){}}};
+const IMAGES=(window.FN_IMAGES||[]).slice();
+const NEAR=0.85;   // classic/reverse: number turns red + blinks when 85% done (15% left)
+let net,ROOM,state=null,players={},cfg=null,brand=null,lastWinners=[],ended=false;
+let S=Object.assign({mode:'classic',kind:'num',count:50,rounds:5,diff:'normal',winners:1,theme:'bright',playerUrl:''},store.get('host',{}));
+if(![1,3,5,10].includes(S.rounds))S.rounds=5;
+function saveS(){store.set('host',S);document.documentElement.dataset.theme=S.theme}
+
+/* ---------- sound ---------- */
+const Snd={ctx:null,init(){if(!this.ctx){try{this.ctx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume()},
+  tone(f,d,type,vol,when=0){if(!this.ctx)return;const c=this.ctx,o=c.createOscillator(),g=c.createGain(),t0=c.currentTime+when;o.type=type;o.frequency.setValueAtTime(f,t0);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.01);g.gain.exponentialRampToValueAtTime(.0001,t0+d);o.connect(g).connect(c.destination);o.start(t0);o.stop(t0+d+.02)},
+  join(){this.tone(660,.1,'triangle',.15);this.tone(990,.14,'triangle',.12,.06)},
+  tick(){this.tone(880,.08,'sine',.18)},go(){this.tone(1320,.3,'triangle',.2)},
+  rank(){[784,1047].forEach((f,i)=>this.tone(f,.2,'triangle',.2,i*.08))},
+  win(){[523,659,784,1047,1319].forEach((f,i)=>this.tone(f,.3,'triangle',.2,i*.11))}};
+document.addEventListener('pointerdown',()=>Snd.init());
+
+/* ---------- boot ---------- */
+(async function(){
+  saveS();
+  try{net=await FNNet.connect()}catch(e){$('#hint').textContent='Cannot connect to Firebase — check the internet / config in fn-net.js';return}
+  ROOM=store.get('room',null)||newCode();store.set('room',ROOM);
+  openRoom();
+})();
+function newCode(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
+let unsub=[];
+async function openRoom(){
+  unsub.forEach(u=>u&&u());unsub=[];
+  $('#roomPill').textContent=ROOM;$('#room2').textContent=ROOM;
+  const st=await net.get(`rooms/${ROOM}/state`);
+  if(!st)await net.set(`rooms/${ROOM}/state`,{status:'lobby',gameId:null,createdAt:net.now()});
+  // keep the running game's cfg if the display page was refreshed mid-game
+  if(!st||st.status==='lobby'||!(await net.get(`rooms/${ROOM}/cfg`)))await net.set(`rooms/${ROOM}/cfg`,buildCfg(store.get('lastSeed',1)));
+  unsub.push(net.on(`rooms/${ROOM}/state`,v=>{state=v||{status:'lobby'};
+    if(state.status==='countdown'&&!$('#cd').classList.contains('on')){if(net.now()>state.startAt)net.update(`rooms/${ROOM}/state`,{status:'playing'});else countdown(state.startAt,state.gameId)}
+    if(state.status==='ended')ended=true;
+    render();renderSetup()}));
+  unsub.push(net.on(`rooms/${ROOM}/players`,v=>{onPlayers(v||{})}));
+  unsub.push(net.on(`rooms/${ROOM}/cfg`,v=>{cfg=v;render()}));
+  unsub.push(net.on(`rooms/${ROOM}/brand`,v=>{brand=v;renderBrand();if($('#modal').classList.contains('on'))renderSetup()}));
+  drawQR();
+}
+function playerUrl(){
+  if(S.playerUrl)return S.playerUrl.replace(/\?.*$/,'').replace(/index\.html$/,'')+'?room='+ROOM;
+  const u=new URL(location.href);
+  u.pathname=u.pathname.replace(/[^/]*$/,''); // player page = index.html of this folder
+  const mock=u.searchParams.get('mock');u.search='';u.searchParams.set('room',ROOM);if(mock)u.searchParams.set('mock',mock);
+  return u.toString();
+}
+function drawQR(){
+  const url=playerUrl();$('#url').textContent=url;
+  try{const q=qrcode(0,'M');q.addData(url);q.make();$('#qr').innerHTML=q.createSvgTag({cellSize:6,margin:2,scalable:true})}
+  catch(e){$('#qr').textContent='QR error'}
+  if(location.protocol==='file:')$('#url').innerHTML+='<div class="err">Opened from a local file — phones cannot reach it. Host the folder (e.g. GitHub Pages) or set the player link in Settings.</div>';
+}
+
+/* ---------- logo (per room) ---------- */
+function renderBrand(){
+  const b=$('#brand');
+  if(brand&&brand.logo)b.innerHTML=`<img class="logo ${brand.size||'m'}" src="${brand.logo}" alt="">`;
+  else b.innerHTML='<div class="mark">FN</div>';
+}
+$('#logoFile').onchange=e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  const img=new Image();
+  img.onload=()=>{
+    const max=480,sc=Math.min(1,max/Math.max(img.width,img.height));
+    const cv=document.createElement('canvas');cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);
+    cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+    const data=cv.toDataURL('image/png');URL.revokeObjectURL(img.src);
+    net.set(`rooms/${ROOM}/brand`,{logo:data,size:(brand&&brand.size)||'m'});
+  };
+  img.src=URL.createObjectURL(f);
+};
+
+/* ---------- settings popup ---------- */
+const MODE_NAME={classic:'Count up 1 → N',reverse:'Count down N → 1',grid:'Grid 1 → N',command:'Called'};
+function seg(key,opts,lab){return `<div class="seg" data-k="${key}">${opts.map(o=>`<button data-v="${o}" class="${String(S[key])===String(o)?'on':''}">${lab(o)}</button>`).join('')}</div>`}
+function renderSetup(){
+  if(!net)return;
+  const isCmd=S.mode==='command';
+  const busy=state&&(state.status==='countdown'||state.status==='playing');
+  const imgErr=isCmd&&S.kind==='img'&&IMAGES.length<4?`<div class="err">No pictures in img/images.js — put images in the img folder and run make-images-list.bat</div>`:'';
+  $('#setup').innerHTML=`
+    ${busy?'<div class="lock">A game is running — game settings unlock when it ends.</div>':''}
+    <div class="group full"><div class="lbl">Game mode</div>${seg('mode',['classic','reverse','grid','command'],o=>MODE_NAME[o])}</div>
+    ${isCmd?`<div class="group"><div class="lbl">Find</div>${seg('kind',['num','img'],o=>o==='num'?'Numbers':'Pictures ('+IMAGES.length+')')}${imgErr}</div>
+      <div class="group"><div class="lbl">Rounds</div>${seg('rounds',[1,3,5,10],o=>o)}</div>`:''}
+    <div class="group"><div class="lbl">${isCmd&&S.kind==='img'?'Pictures on board':'Numbers on board'}</div>${seg('count',[25,36,50,75],o=>o)}</div>
+    <div class="group"><div class="lbl">Difficulty</div>${seg('diff',['easy','normal','hard'],o=>o[0].toUpperCase()+o.slice(1))}</div>
+    <div class="group"><div class="lbl">Winners</div>${seg('winners',[1,2,3,5],o=>o)}<div class="note">The game stops when this many players finish.</div></div>
+    <div class="group"><div class="lbl">Theme</div>${seg('theme',['bright','dark'],o=>o==='bright'?'Bright':'Dark')}</div>
+    <div class="group full"><div class="lbl">Logo (this room)</div>
+      <div class="logoprev"><div class="box">${brand&&brand.logo?`<img src="${brand.logo}" alt="">`:'<b style="color:var(--muted)">FN</b>'}</div>
+        <div class="seg"><button id="bLogo">${brand&&brand.logo?'Change logo':'Upload logo'}</button>${brand&&brand.logo?'<button id="bLogoDel">Remove</button>':''}</div></div>
+      ${brand&&brand.logo?`<div class="seg" id="segLogo">${['s','m','l'].map(z=>`<button data-z="${z}" class="${(brand.size||'m')===z?'on':''}">${{s:'Small',m:'Medium',l:'Large'}[z]}</button>`).join('')}</div>`:''}
+      <div class="note">Shown on this screen and on players' phones. PNG with a transparent background looks best.</div></div>
+    <div class="group full"><div class="lbl">Player link (empty = this folder)</div>
+      <div class="seg"><input type="text" id="inUrl" placeholder="https://…/find-number/" value="${C.esc(S.playerUrl)}"></div></div>
+    <div class="group full"><div class="lbl">Room</div><div class="seg"><button id="bNewRoom">New room</button><button id="bClear">Remove all players</button></div></div>`;
+  $('#setup').querySelectorAll('.seg[data-k] button').forEach(b=>b.onclick=()=>{
+    const k=b.parentElement.dataset.k;
+    if(busy&&k!=='theme')return;
+    let v=b.dataset.v;if(/^\d+$/.test(v))v=+v;S[k]=v;saveS();renderSetup();pushCfg();
+  });
+  $('#bLogo').onclick=()=>$('#logoFile').click();
+  if($('#bLogoDel'))$('#bLogoDel').onclick=()=>net.remove(`rooms/${ROOM}/brand`);
+  if($('#segLogo'))$('#segLogo').querySelectorAll('button').forEach(b=>b.onclick=()=>net.update(`rooms/${ROOM}/brand`,{size:b.dataset.z}));
+  $('#inUrl').onchange=e=>{S.playerUrl=e.target.value.trim();saveS();drawQR()};
+  $('#bNewRoom').onclick=()=>{if(busy||!confirm('Create a new room? Players must scan the new QR.'))return;ROOM=newCode();store.set('room',ROOM);openRoom()};
+  $('#bClear').onclick=()=>{if(busy||!confirm('Remove all players from this room?'))return;net.remove(`rooms/${ROOM}/players`)};
+}
+$('#bSet').onclick=()=>{renderSetup();$('#modal').classList.add('on')};
+$('#bClose').onclick=()=>$('#modal').classList.remove('on');
+$('#modal').addEventListener('pointerdown',e=>{if(e.target.id==='modal')$('#modal').classList.remove('on')});
+function effCount(){return S.mode==='command'&&S.kind==='img'?Math.min(S.count,IMAGES.length):S.count}
+function buildCfg(seed){
+  const c={mode:S.mode,kind:S.mode==='command'?S.kind:'num',count:effCount(),rounds:S.rounds,diff:S.diff,winners:S.winners,theme:S.theme,seed};
+  if(c.kind==='img')c.images=C.shuffle(IMAGES.slice(),C.rng(seed^0x1234)).slice(0,c.count);
+  return c;
+}
+function pushCfg(){
+  if(state&&(state.status==='lobby'||state.status==='ended'))net.set(`rooms/${ROOM}/cfg`,buildCfg(cfg?cfg.seed:1));
+  else if(cfg)net.update(`rooms/${ROOM}/cfg`,{theme:S.theme});
+}
+
+/* ---------- players / bubbles ---------- */
+const bubEls={};
+function onPlayers(v){
+  const before=players;players=v;
+  for(const id in v){if(!before[id]&&state&&state.status==='lobby')Snd.join()}
+  if(state&&state.status==='playing')judge(before);
+  render();
+}
+function list(){return Object.entries(players).map(([id,p])=>({id,...p}))}
+function inGame(p){return state&&state.gameId&&p.gameId===state.gameId}
+function judge(before){
+  const ps=list().filter(inGame);
+  const done=ps.filter(p=>p.done).sort((a,b)=>a.ms-b.ms);
+  const ups={};
+  done.forEach((p,i)=>{if(i<cfg.winners&&p.rank!==i+1)ups[`${p.id}/rank`]=i+1});
+  const newly=done.filter(p=>!(before[p.id]&&before[p.id].done));
+  if(Object.keys(ups).length)net.update(`rooms/${ROOM}/players`,ups);
+  if(newly.length){
+    newly.forEach(p=>{const i=done.indexOf(p);if(i<cfg.winners){const el=bubEls[p.id];if(el){el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop')}Snd.rank()}});
+    if(done.length>=Math.min(cfg.winners,ps.length))endGame(false);
+  }
+}
+function sizeBubbles(n){
+  const st=$('#stage'),bw=$('#bubbles');const W=bw.clientWidth,H=bw.clientHeight;
+  const gap=Math.max(8,Math.min(18,W/60));
+  let s=Math.sqrt(W*H/Math.max(1,n))*0.82-gap;
+  s=Math.max(84,Math.min(230,s));
+  while(s>70){const per=Math.floor((W+gap)/(s+gap));const rows=Math.ceil(n/Math.max(1,per));if(rows*(s+gap)<=H)break;s-=6}
+  st.style.setProperty('--bs',s+'px');st.style.setProperty('--gap',gap+'px');
+}
+function fmtT(ms){return (ms/1000).toFixed(2)+'s'}
+function valueHTML(p){
+  if(!cfg)return '';
+  const seq=C.sequence(cfg);const prog=p.prog||0;
+  if(state.status==='lobby')return `<div class="val" style="font-size:calc(var(--bs) * .18)">READY</div>`;
+  if(cfg.mode==='command')return `<div class="val">${prog}</div><div class="of">of ${seq.length} rounds</div>`;
+  // count up / count down: the number grows as the player gets closer, red + blinking for the last 15%
+  const pct=seq.length?prog/seq.length:0;
+  const nf=(.22+.24*pct).toFixed(3);
+  const near=pct>=NEAR&&!p.done;
+  const last=prog?seq[prog-1]:null;
+  return `<div class="val${near?' near':''}" style="--nf:${nf}">${last==null?'—':String(last).padStart(2,'0')}</div><div class="of">${prog}/${seq.length}</div>`;
+}
+function bubbleHTML(p,withX){
+  const seq=cfg?C.sequence(cfg):[];const pct=seq.length?Math.min(1,(p.prog||0)/seq.length):0;
+  const R=46,L=2*Math.PI*R;
+  return `<svg class="ring" viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="${R}"/><circle class="fg" cx="50" cy="50" r="${R}" stroke-dasharray="${L}" stroke-dashoffset="${L*(1-pct)}"/></svg>
+    <div class="nm">${C.esc(p.name||'?')}</div>${valueHTML(p)}
+    ${p.rank?`<div class="rk">${p.rank}</div>`:''}
+    ${withX?`<button class="x" data-del="${p.id}" title="Remove player">×</button>`:''}`;
+}
+function renderWinners(){
+  const col=$('#wcol');
+  const show=cfg.winners>1&&state.status!=='lobby';
+  col.classList.toggle('on',show);
+  if(!show)return;
+  const ranked=list().filter(p=>inGame(p)&&p.rank).sort((a,b)=>a.rank-b.rank);
+  const sig=ranked.map(p=>p.id+p.rank).join('|')+'#'+cfg.winners;
+  if(col.dataset.sig===sig)return;col.dataset.sig=sig;
+  let html='<h3>WINNERS</h3>';
+  for(let i=1;i<=cfg.winners;i++){
+    const p=ranked.find(x=>x.rank===i);
+    html+=p?`<div class="wrow"><div class="r">${i}</div><div class="n">${C.esc(p.name)}</div><div class="tm">${p.done?fmtT(p.ms):(p.prog||0)+'/'+C.sequence(cfg).length}</div></div>`
+           :`<div class="wrow empty"><div class="r">${i}</div><div class="n">…</div></div>`;
+  }
+  col.innerHTML=html;
+}
+function renderDock(){
+  const s=state.status,d=$('#dock');
+  const key=s;if(d.dataset.k===key)return;d.dataset.k=key;
+  if(s==='lobby')d.innerHTML='<button class="go" id="bStart">START GAME</button>';
+  else if(s==='countdown'||s==='playing')d.innerHTML='<button class="go sec warn" id="bEnd">End game</button>';
+  else d.innerHTML='<button class="go sec" id="bLobby">Back to lobby</button>';
+  if($('#bStart'))$('#bStart').onclick=startGame;
+  if($('#bEnd'))$('#bEnd').onclick=()=>{if(confirm('End the game now? Winners are decided by progress.'))endGame(true)};
+  if($('#bLobby'))$('#bLobby').onclick=toLobby;
+}
+function render(){
+  if(!state||!cfg)return;
+  const lobby=state.status==='lobby',isEnded=state.status==='ended';
+  renderDock();
+  $('#qrbig').classList.toggle('on',lobby);
+  const what=cfg.mode==='command'?(cfg.kind==='img'?' · find pictures':' · find numbers')+' · '+(C.sequence(cfg).length)+' rounds':'';
+  $('#modeLine').textContent=MODE_NAME[cfg.mode]+what+' · '+cfg.count+' on board';
+  $('#goalPill').innerHTML=`Winners <b>${cfg.winners}</b>`;
+  let ps=list();
+  if(!lobby)ps=ps.filter(inGame);
+  $('#pCount').textContent=lobby?list().length:ps.length;
+  ps.sort((a,b)=>lobby?(a.joinedAt||0)-(b.joinedAt||0):((b.done?1:0)-(a.done?1:0))||(b.done&&a.done?a.ms-b.ms:0)||(b.prog||0)-(a.prog||0));
+  $('#hint').style.display=list().length?'none':'';
+  renderWinners();
+  sizeBubbles(ps.length);
+  const wrap=$('#bubbles');const seen=new Set();
+  ps.forEach((p,i)=>{
+    seen.add(p.id);
+    let el=bubEls[p.id];
+    if(!el){el=document.createElement('div');el.className='bub join';bubEls[p.id]=el;wrap.appendChild(el);setTimeout(()=>el.classList.remove('join'),450)}
+    el.innerHTML=bubbleHTML(p,lobby);el.classList.toggle('done',!!p.done);el.style.order=i;
+  });
+  for(const id in bubEls)if(!seen.has(id)){bubEls[id].remove();delete bubEls[id]}
+  wrap.classList.toggle('frozen',isEnded);
+}
+$('#bubbles').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(b)net.remove(`rooms/${ROOM}/players/${b.dataset.del}`)});
+window.addEventListener('resize',render);
+$('#bFs').onclick=()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.()};
+
+/* ---------- game flow ---------- */
+async function startGame(){
+  Snd.init();
+  const ids=Object.keys(players);
+  if(!ids.length){alert('No players yet — scan the QR to join.');return}
+  if(S.mode==='command'&&S.kind==='img'&&IMAGES.length<4){alert('No pictures found in the img folder.');return}
+  const seed=Math.floor(Math.random()*2e9);store.set('lastSeed',seed);
+  const gameId='g'+Date.now().toString(36);
+  await net.set(`rooms/${ROOM}/cfg`,buildCfg(seed));
+  const ups={};
+  ids.forEach(id=>{ups[`${id}/prog`]=0;ups[`${id}/done`]=false;ups[`${id}/ms`]=null;ups[`${id}/rank`]=null;ups[`${id}/mis`]=0;ups[`${id}/gameId`]=gameId});
+  await net.update(`rooms/${ROOM}/players`,ups);
+  ended=false;$('#modal').classList.remove('on');$('#wcol').dataset.sig='';
+  const startAt=net.now()+4000;
+  await net.set(`rooms/${ROOM}/state`,{status:'countdown',gameId,startAt});
+  countdown(startAt,gameId);
+}
+let cdFor=null;
+function countdown(startAt,gameId){
+  if(cdFor===gameId)return;cdFor=gameId;
+  const cd=$('#cd'),num=$('#cdNum');cd.classList.add('on');let last=null;
+  const step=()=>{
+    const left=startAt-net.now();
+    if(left>0){const n=Math.ceil(left/1000);if(n!==last){last=n;num.textContent=n;num.style.animation='none';void num.offsetWidth;num.style.animation='';Snd.tick()}requestAnimationFrame(step);return}
+    cd.classList.remove('on');Snd.go();
+    if(state&&state.gameId===gameId&&state.status==='countdown')net.update(`rooms/${ROOM}/state`,{status:'playing'});
+  };
+  step();
+}
+async function endGame(manual){
+  if(ended)return;ended=true;
+  const ps=list().filter(inGame);
+  // winners = finishers by time, then (manual end) best progress
+  const ranked=ps.slice().sort((a,b)=>((b.done?1:0)-(a.done?1:0))||(a.done&&b.done?a.ms-b.ms:0)||(b.prog||0)-(a.prog||0));
+  const ups={};
+  ranked.forEach((p,i)=>{ups[`${p.id}/rank`]=i<cfg.winners?i+1:null});
+  await net.update(`rooms/${ROOM}/players`,ups);
+  await net.update(`rooms/${ROOM}/state`,{status:'ended',endedAt:net.now()});
+  lastWinners=ranked.slice(0,cfg.winners).map(p=>({...p,rank:ranked.indexOf(p)+1}));
+  // short freeze, then zoom the winner bubble(s)
+  setTimeout(()=>showWinners(ranked),manual?100:650);
+}
+function showWinners(ranked){
+  const seq=C.sequence(cfg);const W=lastWinners;
+  const big=W.length===1?Math.min(innerWidth,innerHeight)*.42:Math.min(innerWidth/(W.length+1),innerHeight*.34);
+  const order=W.length>=3?[1,0,2].concat(W.slice(3).map((_,i)=>i+3)).filter(i=>i<W.length):W.map((_,i)=>i);
+  const rest=ranked.slice(W.length);
+  const res=p=>p.done?fmtT(p.ms):(p.prog||0)+'/'+seq.length;
+  $('#ov').innerHTML=`<h2>${W.length>1?'WINNERS':'WINNER!'}</h2>
+    <div class="winners">${order.map((i,k)=>{const p=W[i];const s=i===0?big:big*.82;
+      return `<div class="bub done" style="--bs:${s}px;animation-delay:${k*.12}s">${bubbleHTML({...p,done:true},false).replace(/<div class="of">.*?<\/div>/,`<div class="of">${res(p)}</div>`)}</div>`}).join('')}</div>
+    ${rest.length?`<div class="rest">${rest.map((p,i)=>`<div><span>${W.length+i+1}. ${C.esc(p.name)}</span><span>${res(p)}</span></div>`).join('')}</div>`:''}
+    <div class="acts"><button class="btn pri" id="ovAgain">Play again</button><button class="btn" id="ovClose">Close</button></div>`;
+  $('#ov').classList.add('on');
+  Snd.win();confetti();
+  $('#ovAgain').onclick=toLobby;
+  $('#ovClose').onclick=()=>$('#ov').classList.remove('on');
+}
+async function toLobby(){
+  $('#ov').classList.remove('on');
+  const ups={};Object.keys(players).forEach(id=>{ups[`${id}/prog`]=0;ups[`${id}/done`]=false;ups[`${id}/ms`]=null;ups[`${id}/rank`]=null});
+  await net.update(`rooms/${ROOM}/players`,ups);
+  await net.set(`rooms/${ROOM}/state`,{status:'lobby',gameId:null});
+  ended=false;
+}
+
+/* ---------- confetti (placeholder effect — swap later) ---------- */
+function confetti(){
+  const cv=$('#fx'),cx=cv.getContext('2d');cv.width=innerWidth;cv.height=innerHeight;
+  const cols=['#FF4D6D','#3A86FF','#F5B700','#1FAA6B','#7B4DFF','#FF7A1A'];
+  const P=Array.from({length:180},()=>({x:innerWidth/2+(Math.random()-.5)*200,y:innerHeight*.45,vx:(Math.random()-.5)*18,vy:-Math.random()*18-6,r:Math.random()*Math.PI,vr:(Math.random()-.5)*.3,w:6+Math.random()*8,h:8+Math.random()*10,c:cols[Math.floor(Math.random()*cols.length)]}));
+  const t0=performance.now();
+  (function f(t){
+    cx.clearRect(0,0,cv.width,cv.height);
+    P.forEach(p=>{p.vy+=.45;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.c;cx.fillRect(-p.w/2,-p.h/2,p.w,p.h);cx.restore()});
+    if(t-t0<3500)requestAnimationFrame(f);else cx.clearRect(0,0,cv.width,cv.height);
+  })(t0);
+}
+</script>
+</body>
+</html>
